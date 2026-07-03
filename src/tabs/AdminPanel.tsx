@@ -1,0 +1,195 @@
+import React, { useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
+
+interface User {
+  id: number | string;
+  fullName: string;
+  username: string;
+  email: string;
+  phoneNumber: string;
+  nim: string;
+  role: string;
+}
+
+const AdminPanel: React.FC = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(true);
+
+  const API_URL = 'http://localhost/prisma-api/admin_users.php';
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(API_URL);
+      const result = await response.json();
+      
+      if (result && result.status === 'success' && Array.isArray(result.data)) {
+        setUsers(result.data);
+      } else if (Array.isArray(result)) {
+        setUsers(result);
+      } else {
+        setUsers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      Swal.fire('Error!', 'Tidak dapat terhubung ke server database.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleRoleChange = async (userId: number | string, currentRole: string, newRole: string) => {
+    const confirmResult = await Swal.fire({
+      title: 'Apakah Anda yakin?',
+      text: `Mengubah role dari ${currentRole} menjadi ${newRole}?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#5c1313',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Ya, Ubah!',
+      cancelButtonText: 'Batal',
+      customClass: { popup: 'rounded-[2rem]' }
+    });
+
+    if (!confirmResult.isConfirmed) {
+      fetchUsers();
+      return;
+    }
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, newRole })
+      });
+      
+      const result = await response.json();
+      if (result.status === 'success') {
+        Swal.fire({
+          title: 'Berhasil!',
+          text: result.message,
+          icon: 'success',
+          confirmButtonColor: '#5c1313',
+          customClass: { popup: 'rounded-[2rem]' }
+        });
+        fetchUsers();
+      } else {
+        Swal.fire('Gagal!', result.message, 'error');
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error('Error updating role:', error);
+      Swal.fire('Error!', 'Gagal mengubah role ke server.', 'error');
+      fetchUsers();
+    }
+  };
+
+  const filteredUsers = users.filter(user => 
+    user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.nim?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-[#FDFDFD] p-6 md:p-12 font-sans">
+      <div className="max-w-7xl mx-auto space-y-6">
+ 
+        <div className="flex justify-between items-center">
+          <h1 className="text-4xl font-black text-gray-950 uppercase tracking-tight">
+            KELOLA PENGGUNA ADMIN
+          </h1>
+          
+          <button 
+            onClick={fetchUsers}
+            className="p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl transition duration-200 transform active:scale-95"
+            title="Refresh Data"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+            </svg>
+          </button>
+        </div>
+
+        {/* BAR PENCARIAN */}
+        <div className="relative w-full max-w-2xl">
+          <span className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.604 10.604z" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            placeholder="Cari nama, username, atau NIM..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-4 bg-[#F7F7F7] border border-transparent rounded-full text-sm font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-gray-200 transition duration-200 shadow-sm"
+          />
+        </div>
+
+        {/* LOADING STATE */}
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#5c1313]"></div>
+          </div>
+        ) : (
+          /* TABEL USER */
+          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-black/[0.02] overflow-hidden relative z-10 mt-4">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Nama Lengkap</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Email</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">NIM / NIP</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">No. HP</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Aksi / Role</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-sm font-bold text-gray-700">
+                  {filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center text-gray-400 uppercase tracking-wider font-semibold text-xs">
+                        Tidak ada data pengguna ditemukan.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map((user) => (
+                      <tr key={user.id} className="hover:bg-gray-50/50 transition-colors duration-200">
+                        <td className="px-6 py-4 text-gray-900">{user.fullName}</td>
+                        <td className="px-6 py-4 text-gray-500 font-mono text-xs">{user.username}</td>
+                        <td className="px-6 py-4 text-gray-500 font-medium">{user.email}</td>
+                        <td className="px-6 py-4 font-mono text-xs text-gray-600">{user.nim || '-'}</td>
+                        <td className="px-6 py-4 text-gray-500 text-xs">{user.phoneNumber || '-'}</td>
+                        <td className="px-6 py-4 flex justify-center">
+                          <select
+                            value={user.role}
+                            onChange={(e) => handleRoleChange(user.id, user.role, e.target.value)}
+                            className="px-4 py-2 border border-gray-200 rounded-xl outline-none focus:border-[#5c1313] font-bold text-xs bg-white text-gray-800 shadow-sm transition-all duration-300 cursor-pointer"
+                          >
+                            <option value="Mahasiswa">Mahasiswa</option>
+                            <option value="Asisten Laboratorium">Asisten Laboratorium</option>
+                            <option value="Dosen">Dosen</option>
+                            <option value="Admin">Admin</option>
+                          </select>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        
+      </div>
+    </div>
+  );
+};
+
+export default AdminPanel;

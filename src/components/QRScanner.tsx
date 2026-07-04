@@ -23,56 +23,86 @@ const QRScanner: React.FC<QRScannerProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [error, setError] = useState<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | null>(null);
+  const onScanRef = useRef(onScan);
+  const onCloseRef = useRef(onClose);
 
   useEffect(() => {
-    const startCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'environment' } 
-        });
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.setAttribute("playsinline", "true");
-          videoRef.current.play();
-          animationFrameRef.current = requestAnimationFrame(tick);
-        }
-      } catch (err) {
-        setError(lang === 'id' ? 'Gagal mengakses kamera.' : 'Failed to access camera.');
-      }
-    };
+    onScanRef.current = onScan;
+    onCloseRef.current = onClose;
+  }, [onScan, onClose]);
+
+  useEffect(() => {
+    let active = true;
 
     const tick = () => {
-      if (videoRef.current?.readyState === videoRef.current?.HAVE_ENOUGH_DATA) {
-        const canvas = canvasRef.current;
-        const context = canvas?.getContext('2d', { willReadFrequently: true });
-        if (canvas && context && videoRef.current) {
-          canvas.height = videoRef.current.videoHeight;
-          canvas.width = videoRef.current.videoWidth;
-          context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      if (!active) return;
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+
+      if (video && video.readyState === video.HAVE_ENOUGH_DATA && canvas) {
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        
+        if (context && video.videoWidth > 0 && video.videoHeight > 0) {
+          canvas.height = video.videoHeight;
+          canvas.width = video.videoWidth;
+          
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
           const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
           const code = jsQR(imageData.data, imageData.width, imageData.height);
           
           if (code) {
             const sanitizedData = code.data.replace(/^ASSET_ID:/i, '').trim();
-            
-            onScan(sanitizedData);
-            
-            onClose();
+            onScanRef.current(sanitizedData);
+            onCloseRef.current();
             return; 
           }
         }
       }
+      
       animationFrameRef.current = requestAnimationFrame(tick);
     };
 
-    startCamera();
-    return () => {
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' } 
+        });
+        
+        if (!active) {
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.setAttribute("playsinline", "true");
+          videoRef.current.play().catch(() => {}); 
+          animationFrameRef.current = requestAnimationFrame(tick);
+        }
+      } catch (err: any) {
+        if (!active) return;
+        const message = err?.name === 'NotAllowedError'
+          ? (lang === 'id' ? 'Izin kamera ditolak. Aktifkan izin kamera di pengaturan browser.' : 'Camera permission denied. Enable it in your browser settings.')
+          : (lang === 'id' ? 'Gagal mengakses kamera.' : 'Failed to access camera.');
+        setError(message);
+      }
     };
-  }, [onScan, onClose, lang]); 
+
+    startCamera();
+
+    return () => {
+      active = false;
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [lang]); 
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-zinc-950/98 backdrop-blur-xl">

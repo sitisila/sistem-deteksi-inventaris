@@ -6,11 +6,13 @@ import DashboardMain from './DashboardMain';
 import QRScanner from './components/QRScanner';
 import Swal from 'sweetalert2'; 
 
+export const API_BASE_URL = 'http://localhost/prisma-api';
+
 const App: React.FC = () => {
   const [lang, setLang] = useState<'id' | 'en'>('id');
   const t = useMemo(() => TRANSLATIONS[lang], [lang]);
-
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]); 
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -25,6 +27,16 @@ const App: React.FC = () => {
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [assetToPrint, setAssetToPrint] = useState<Asset | null>(null);
 
+  const authFetch = (url: string, options: RequestInit = {}) => {
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+      }
+    });
+  };
+
   const labList = useMemo(() => [
     { id: 'Admin', name: 'Ruangan Admin', room: 'Office', color: 'from-gray-600 to-gray-800' },
     { id: 'Mechanic Workshop', name: 'Mechanical and Electrical Workshop Laboratory', room: 'G13', color: 'from-blue-500 to-blue-700' },
@@ -37,7 +49,7 @@ const App: React.FC = () => {
 
   const fetchAssets = async () => {
     try {
-      const response = await fetch('http://localhost/prisma-api/get_assets.php');
+      const response = await authFetch(`${API_BASE_URL}/get_assets.php`);
       const data = await response.json();
       if (data && Array.isArray(data)) setAssets(data);
     } catch (error) { console.error("Gagal mengambil data aset:", error); }
@@ -45,7 +57,7 @@ const App: React.FC = () => {
 
   const fetchLoans = async () => {
     try {
-      const response = await fetch('http://localhost/prisma-api/get_loans.php');
+      const response = await authFetch(`${API_BASE_URL}/get_loans.php`);
       const data = await response.json();
       if (data && Array.isArray(data)) setLoans(data);
     } catch (error) { console.error("Gagal mengambil data peminjaman:", error); }
@@ -63,9 +75,9 @@ const App: React.FC = () => {
     }
   }, [currentUser]);
 
-  const handleLoginSubmit = async (formData: any) => {
+  const handleLoginSubmit = async (formData: any): Promise<boolean> => {
     try {
-      const response = await fetch('http://localhost/prisma-api/login.php', {
+      const response = await fetch(`${API_BASE_URL}/login.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -73,6 +85,8 @@ const App: React.FC = () => {
       const result = await response.json();
       if (result.status === 'success') {
         setCurrentUser(result.user);
+        setAuthToken(result.token);
+        return true;
       } else {
         Swal.fire({
           title: lang === 'id' ? 'Gagal Masuk!' : 'Login Failed!',
@@ -81,6 +95,7 @@ const App: React.FC = () => {
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }
         });
+        return false;
       }
     } catch (error) { 
       Swal.fire({
@@ -90,12 +105,13 @@ const App: React.FC = () => {
         confirmButtonColor: '#5c1313',
         customClass: { popup: 'rounded-[2rem]' }
       });
+      return false;
     }
   };
 
-  const handleRegisterSubmit = async (formData: any) => {
+  const handleRegisterSubmit = async (formData: any): Promise<boolean> => {
     try {
-      const response = await fetch('http://localhost/prisma-api/register.php', {
+      const response = await fetch(`${API_BASE_URL}/register.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -109,6 +125,7 @@ const App: React.FC = () => {
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }
         });
+        return true;
       } else {
         Swal.fire({
           title: lang === 'id' ? 'Gagal Daftar!' : 'Registration Failed!',
@@ -117,6 +134,7 @@ const App: React.FC = () => {
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }
         });
+        return false;
       }
     } catch (error) { 
       Swal.fire({
@@ -126,12 +144,15 @@ const App: React.FC = () => {
         confirmButtonColor: '#5c1313',
         customClass: { popup: 'rounded-[2rem]' }
       });
+      return false;
     }
   };
 
   const handleSaveNewAsset = async (data: any) => {
+    const isUpdate = !!data.id;
+    const endpoint = isUpdate ? 'update_asset.php' : 'save_asset.php';
     try {
-      const response = await fetch('http://localhost/prisma-api/save_asset.php', {
+      const response = await authFetch(`${API_BASE_URL}/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -140,7 +161,9 @@ const App: React.FC = () => {
       if (result.status === 'success') {
         Swal.fire({
           title: lang === 'id' ? 'Berhasil!' : 'Success!',
-          text: lang === 'id' ? 'Aset berhasil disimpan!' : 'Asset saved successfully!',
+          text: isUpdate
+            ? (lang === 'id' ? 'Aset berhasil diperbarui!' : 'Asset updated successfully!')
+            : (lang === 'id' ? 'Aset berhasil disimpan!' : 'Asset saved successfully!'),
           icon: 'success',
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }
@@ -169,10 +192,10 @@ const App: React.FC = () => {
 
   const handleLoanSubmit = async (loanData: any) => {
     try {
-      const response = await fetch('http://localhost/prisma-api/request_loan.php', {
+      const response = await authFetch(`${API_BASE_URL}/request_loan.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...loanData, userId: currentUser?.id })
+        body: JSON.stringify(loanData)
       });
       const result = await response.json();
       if (result.status === 'success') {
@@ -253,13 +276,41 @@ const App: React.FC = () => {
   };
 
   const handleReturnAsset = async (loanId: string) => { 
-    Swal.fire({
-      title: lang === 'id' ? 'Info' : 'Info',
-      text: lang === 'id' ? 'Gunakan menu Monitoring untuk mengembalikan aset.' : 'Use the Monitoring menu to return assets.',
-      icon: 'info',
-      confirmButtonColor: '#5c1313',
-      customClass: { popup: 'rounded-[2rem]' }
-    });
+    try {
+      const response = await authFetch(`${API_BASE_URL}/return_loan.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loanId })
+      });
+      const result = await response.json();
+      if (result.status === 'success') {
+        Swal.fire({
+          title: lang === 'id' ? 'Berhasil!' : 'Success!',
+          text: lang === 'id' ? 'Aset berhasil dikembalikan.' : 'Asset returned successfully.',
+          icon: 'success',
+          confirmButtonColor: '#5c1313',
+          customClass: { popup: 'rounded-[2rem]' }
+        });
+        fetchLoans();
+        fetchAssets();
+      } else {
+        Swal.fire({
+          title: lang === 'id' ? 'Gagal!' : 'Failed!',
+          text: result.message,
+          icon: 'error',
+          confirmButtonColor: '#5c1313',
+          customClass: { popup: 'rounded-[2rem]' }
+        });
+      }
+    } catch (error) {
+      Swal.fire({
+        title: 'Error!',
+        text: lang === 'id' ? 'Gagal terhubung ke server.' : 'Failed to reach the server.',
+        icon: 'error',
+        confirmButtonColor: '#5c1313',
+        customClass: { popup: 'rounded-[2rem]' }
+      });
+    }
   };
 
   const filteredAssets = useMemo(() => {
@@ -317,6 +368,7 @@ const App: React.FC = () => {
         <DashboardMain 
           currentUser={currentUser} 
           setCurrentUser={setCurrentUser} 
+          authToken={authToken}
           lang={lang} 
           setLang={setLang} 
           t={t} 

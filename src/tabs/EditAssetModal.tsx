@@ -161,7 +161,7 @@ const EditAssetModal: React.FC<AddAssetModalProps> = ({ isOpen, onClose, onSave,
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
                 <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">{t?.assetNameLabel || 'NAMA ASET / ALAT'}</label>
-                <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/5 text-xs font-bold text-gray-800 transition-all placeholder:text-gray-300" placeholder="e.g. Dumbbell 10kg, Treadmill Pro" />
+                <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-5 py-4 rounded-2xl border border-slate-200 focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/5 text-xs font-bold text-gray-800 transition-all placeholder:text-gray-300" placeholder="Digital Ossiloscope" />
               </div>
               <div>
                 <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">{t?.brandTypeLabel || 'MERK / TIPE'}</label>

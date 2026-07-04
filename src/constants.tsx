@@ -157,8 +157,6 @@ export const TRANSLATIONS: Record<string, any> = {
     confirmReturnBtn: "Konfirmasi Kembali",
     confirmReturnAlert: "Konfirmasi pengembalian alat: ",
     confirmReturnSubAlert: "? Status alat akan kembali menjadi TERSEDIA.",
-    
-    // --- KATA KUNCI BARU TAMBAHAN ---
     systemSubtitle: "Sistem Monitoring Aset",
     logisticSummary: "Ringkasan Data Logistik",
     fileShortcut: "Pintasan Berkas",
@@ -168,7 +166,9 @@ export const TRANSLATIONS: Record<string, any> = {
     userLabel: "Mahasiswa",
     loanActionLabel: "mengajukan alat",
     timeAgo: "Baru saja",
-    noRecentDataDesc: "Mulai eksplorasi daftar laboratorium untuk melihat log atau mengajukan surat izin peminjaman alat."
+    noRecentDataDesc: "Mulai eksplorasi daftar laboratorium untuk melihat log atau mengajukan surat izin peminjaman alat.",
+    estimatedLabel: 'EST. KEMBALI'
+
   },
 
   en: {
@@ -320,8 +320,6 @@ export const TRANSLATIONS: Record<string, any> = {
     confirmReturnBtn: "Confirm Return",
     confirmReturnAlert: "Confirm return for: ",
     confirmReturnSubAlert: "? Asset status will revert to AVAILABLE.",
-    
-    // --- KATA KUNCI BARU TAMBAHAN ---
     systemSubtitle: "Asset Monitoring System",
     logisticSummary: "Logistics Data Summary",
     fileShortcut: "File Shortcuts",
@@ -331,7 +329,8 @@ export const TRANSLATIONS: Record<string, any> = {
     userLabel: "Student",
     loanActionLabel: "requested an asset",
     timeAgo: "Just now",
-    noRecentDataDesc: "Start exploring the laboratory list to view logs or submit equipment loan applications."
+    noRecentDataDesc: "Start exploring the laboratory list to view logs or submit equipment loan applications.",
+    estimatedLabel: 'EST. RETURN'
   }
 };
 

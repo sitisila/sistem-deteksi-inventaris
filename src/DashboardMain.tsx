@@ -9,10 +9,13 @@ import ApprovalTab from './tabs/ApprovalTab';
 import MonitoringTab from './tabs/MonitoringTab'; 
 import HistoryTab from './tabs/HistoryTab';
 import AdminPanel from './tabs/AdminPanel'; 
+import Swal from 'sweetalert2';
+import { API_BASE_URL } from './App';
 
 interface DashboardProps {
   currentUser: any;
   setCurrentUser: (user: any) => void;
+  authToken: string | null;
   lang: 'id' | 'en';
   setLang: (l: 'id' | 'en') => void;
   t: any;
@@ -22,18 +25,15 @@ interface DashboardProps {
   
   activeTab: 'home' | 'labs' | 'admin-assets' | 'manage-assets' | 'loans' | 'monitoring' | 'history' | 'admin-panel' | string;
   setActiveTab: React.Dispatch<React.SetStateAction<any>>;
-
   selectedLab: string | null;
   setSelectedLab: (lab: string | null) => void;
   setIsScannerOpen: (val: boolean) => void;
   setIsAddAssetOpen: (val: boolean) => void;
   isAddAssetOpen: boolean; 
-  
   isLoanFormOpen: boolean;
   setIsLoanFormOpen: (val: boolean) => void; 
   selectedAssetForLoan: any; 
   setSelectedAssetForLoan: (asset: any) => void; 
-
   openLoanForm: (asset: any) => void;
   handlePrint: (asset: any) => void;
   labList: any[];
@@ -44,22 +44,15 @@ interface DashboardProps {
 }
 
 const DashboardMain: React.FC<DashboardProps> = ({
-  currentUser, setCurrentUser, lang, setLang, t, assets, setAssets, loans, activeTab, setActiveTab, 
+  currentUser, setCurrentUser, authToken, lang, setLang, t, assets, setAssets, loans, activeTab, setActiveTab, 
   selectedLab, setSelectedLab, setIsScannerOpen, setIsAddAssetOpen, isAddAssetOpen, 
-  
-  isLoanFormOpen,
-  setIsLoanFormOpen,
-  selectedAssetForLoan,
-  setSelectedAssetForLoan,
-
-  openLoanForm, handlePrint, labList, filteredAssets, 
-  onSaveAsset,
-  onLoanSubmit,
-  onReturnAsset 
+  isLoanFormOpen, setIsLoanFormOpen, selectedAssetForLoan, setSelectedAssetForLoan,
+  openLoanForm, handlePrint, labList, filteredAssets, onSaveAsset, onLoanSubmit, onReturnAsset 
 }) => {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [processingLoanId, setProcessingLoanId] = useState<string | null>(null);
 
   const handleOpenLoanForm = (asset: any) => {
     setSelectedAssetForLoan(asset);
@@ -74,25 +67,53 @@ const DashboardMain: React.FC<DashboardProps> = ({
       const assetId = targetLoan ? targetLoan.asset_id || targetLoan.assetId : '';
 
       const res = await fetch(`http://prisma-api.test/approve_loan.php?id=${loanId}&assetId=${assetId}`);
+  const handleApproveLoan = async (loanId: string, assetId: string) => {
+    setProcessingLoanId(loanId);
+    try {
+      const res = await fetch(`${API_BASE_URL}/approve_loan.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+        },
+        body: JSON.stringify({ id: loanId, assetId })
+      });
       const result = await res.json();
       if (result.status === 'success') {
-        alert("Peminjaman disetujui!");
+        Swal.fire({ title: 'Berhasil!', text: 'Peminjaman disetujui!', icon: 'success', confirmButtonColor: '#5c1313' });
+      } else {
+        Swal.fire({ title: 'Gagal!', text: result.message, icon: 'error', confirmButtonColor: '#5c1313' });
       }
     } catch (error) {
       console.error("Error approving loan:", error);
-      alert("Gagal menghubungi server MySQL");
+      Swal.fire({ title: 'Error!', text: 'Gagal menghubungi server.', icon: 'error', confirmButtonColor: '#5c1313' });
+    } finally {
+      setProcessingLoanId(null);
     }
   };
 
   const handleRejectLoan = async (loanId: string) => {
+    setProcessingLoanId(loanId);
     try {
       const res = await fetch(`http://prisma-api.test/reject_loan.php?id=${loanId}`);
+      const res = await fetch(`${API_BASE_URL}/reject_loan.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+        },
+        body: JSON.stringify({ id: loanId })
+      });
       const result = await res.json();
       if (result.status === 'success') {
-        alert("Peminjaman ditolak.");
+        Swal.fire({ title: 'Berhasil', text: 'Peminjaman ditolak.', icon: 'success', confirmButtonColor: '#5c1313' });
+      } else {
+        Swal.fire({ title: 'Gagal!', text: result.message, icon: 'error', confirmButtonColor: '#5c1313' });
       }
     } catch (error) {
       console.error("Error rejecting loan:", error);
+    } finally {
+      setProcessingLoanId(null);
     }
   };
 
@@ -122,7 +143,7 @@ const DashboardMain: React.FC<DashboardProps> = ({
     <div className="no-print flex flex-col min-h-screen bg-slate-50/70">
       <header className="bg-brand h-14 flex items-center justify-between px-6 text-white sticky top-0 z-50 shadow-md">
         <div className="flex items-center gap-3">
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1.5 hover:bg-white/20 rounded-lg transition-all">
+          <button aria-label="Toggle sidebar" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1.5 hover:bg-white/20 rounded-lg transition-all">
             <svg className={`w-5 h-5 transition-transform duration-300 ${!isSidebarOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
@@ -134,7 +155,7 @@ const DashboardMain: React.FC<DashboardProps> = ({
             <button onClick={() => setLang('id')} className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase transition-all ${lang === 'id' ? 'bg-white text-brand shadow' : 'text-white/40 hover:text-white'}`}>ID</button>
             <button onClick={() => setLang('en')} className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase transition-all ${lang === 'en' ? 'bg-white text-brand shadow' : 'text-white/40 hover:text-white'}`}>EN</button>
           </div>
-          <button onClick={() => setCurrentUser(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition">
+          <button aria-label="Logout" onClick={() => setCurrentUser(null)} className="p-1.5 hover:bg-white/20 rounded-lg transition">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
           </button>
         </div>
@@ -208,20 +229,18 @@ const DashboardMain: React.FC<DashboardProps> = ({
         </aside>
 
         <main className="flex-1 w-full bg-white rounded-[1.5rem] lg:rounded-[2rem] shadow-xl shadow-black/5 p-6 lg:p-8 border border-gray-100/60 min-h-[550px] transition-all duration-500 overflow-hidden">
-          {activeTab === 'home' && <HomeTab t={t} assets={assets} loans={loans} setActiveTab={setActiveTab} />}
+          {activeTab === 'home' && <HomeTab t={t} assets={assets} loans={loans} setActiveTab={setActiveTab} currentUser={currentUser} />}
           
           {activeTab === 'labs' && (
             <LabsTab 
-              t={t} 
-              assets={assets} 
-              selectedLab={selectedLab} 
-              setSelectedLab={setSelectedLab} 
-              openLoanForm={handleOpenLoanForm} 
-              currentUser={currentUser} 
+              t={t} assets={assets} selectedLab={selectedLab} setSelectedLab={setSelectedLab} 
+              openLoanForm={handleOpenLoanForm} currentUser={currentUser} 
             />
           )}
           
-          {activeTab === 'loans' && <ApprovalTab t={t} loans={loans} onApprove={handleApproveLoan} onReject={handleRejectLoan} />}
+          {activeTab === 'loans' && (
+            <ApprovalTab t={t} loans={loans} onApprove={handleApproveLoan} onReject={handleRejectLoan} processingLoanId={processingLoanId} />
+          )}
           
           {activeTab === 'monitoring' && (
             <MonitoringTab t={t} loans={loans} onReturnAsset={(id) => onReturnAsset ? onReturnAsset(id) : undefined} />
@@ -230,7 +249,7 @@ const DashboardMain: React.FC<DashboardProps> = ({
           {activeTab === 'history' && <HistoryTab t={t} loans={loans} currentUser={currentUser} />}
           
           {activeTab === 'admin-panel' && currentUser?.role?.toLowerCase() === 'admin' && (
-            <AdminPanel />
+            <AdminPanel authToken={authToken} />
           )}
           
           {activeTab === 'admin-assets' && (
@@ -239,6 +258,19 @@ const DashboardMain: React.FC<DashboardProps> = ({
 
           {activeTab === 'manage-assets' && (
             <ManageAssetTab {...manageAssetTabProps} />
+            <AdminRoomTab 
+              assets={assets} setAssets={setAssets} currentUser={currentUser} t={t} 
+              searchTerm={searchTerm} setSearchTerm={setSearchTerm} selectedLab={selectedLab} setSelectedLab={setSelectedLab} 
+              handlePrint={handlePrint} onSaveAsset={onSaveAsset} labList={labList}
+            />
+          )}
+
+          {activeTab === 'manage-assets' && (
+            <ManageAssetTab 
+              assets={assets} setAssets={setAssets} currentUser={currentUser} t={t} 
+              searchTerm={searchTerm} setSearchTerm={setSearchTerm} selectedLab={selectedLab} setSelectedLab={setSelectedLab} 
+              setIsAddAssetOpen={setIsAddAssetOpen} handlePrint={handlePrint} onSaveAsset={onSaveAsset} labList={labList}
+            />
           )}
         </main>
       </div>
@@ -248,17 +280,14 @@ const DashboardMain: React.FC<DashboardProps> = ({
         onClose={() => setIsAddAssetOpen(false)} 
         labList={labList} 
         t={t} 
-        onSave={(data) => { onSaveAsset(data); setIsAddAssetOpen(false); }} 
+        onSave={(data) => onSaveAsset(data)} 
       />
       
       <LoanRequestModal 
         isOpen={isLoanFormOpen} 
         onClose={() => setIsLoanFormOpen(false)} 
         asset={selectedAssetForLoan} 
-        onSubmit={(loanData) => { 
-          onLoanSubmit(loanData);
-          setIsLoanFormOpen(false); 
-        }} 
+        onSubmit={(loanData) => onLoanSubmit(loanData)} 
       />
     </div>
   );

@@ -6,19 +6,22 @@ import DashboardMain from './DashboardMain';
 import QRScanner from './components/QRScanner';
 import Swal from 'sweetalert2'; 
 
-// Membuat tipe data kustom khusus untuk komponen ini agar toleran terhadap properti lama
-type ExtendedAsset = Asset & {
-  name?: string;
-  serialNumber?: string;
-  lab?: string;
-};
+// ✔ PERBAIKAN 1: Mendefinisikan URL API Laragon Anda dan interface ExtendedAsset agar tidak undefined
+const API_BASE_URL = 'http://prisma-api.test'; 
+
+interface ExtendedAsset extends Asset {
+  [key: string]: any;
+}
 
 const App: React.FC = () => {
   const [lang, setLang] = useState<'id' | 'en'>('id');
   const t = useMemo(() => TRANSLATIONS[lang], [lang]);
-
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [assets, setAssets] = useState<ExtendedAsset[]>([]); 
+  
+  // ✔ PERBAIKAN 2: Menambahkan state token autentikasi yang dibawa oleh update sistem teman Anda
+  const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('token'));
+  
+  const [assets, setAssets] = useState<Asset[]>([]); 
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannedAsset, setScannedAsset] = useState<ExtendedAsset | null>(null);
@@ -30,7 +33,7 @@ const App: React.FC = () => {
   const [selectedAssetForLoan, setSelectedAssetForLoan] = useState<ExtendedAsset | null>(null);
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-  const [assetToPrint, setAssetToPrint] = useState<ExtendedAsset | null>(null);
+  const [assetToPrint, setAssetToPrint] = useState<Asset | null>(null);
 
   const labList = useMemo(() => [
     { id: 'Admin', name: 'Ruangan Admin', room: 'Office', color: 'from-gray-600 to-gray-800' },
@@ -42,9 +45,18 @@ const App: React.FC = () => {
     { id: 'CellComm', name: 'Cellular Communication (CellComm) Laboratory', room: 'A1', color: 'from-cyan-500 to-cyan-700' },
   ], []);
 
+  // ✔ PERBAIKAN 3: Membuat helper fungsi authFetch agar request menyertakan token Bearer secara otomatis
+  const authFetch = async (url: string, options: RequestInit = {}) => {
+    const headers = new Headers(options.headers || {});
+    if (authToken) {
+      headers.set('Authorization', `Bearer ${authToken}`);
+    }
+    return fetch(url, { ...options, headers });
+  };
+
   const fetchAssets = async () => {
     try {
-      const response = await fetch('http://prisma-api.test/get_assets.php');
+      const response = await authFetch(`${API_BASE_URL}/get_assets.php`);
       const data = await response.json();
       if (data && Array.isArray(data)) setAssets(data);
     } catch (error) { console.error("Gagal mengambil data aset:", error); }
@@ -52,7 +64,7 @@ const App: React.FC = () => {
 
   const fetchLoans = async () => {
     try {
-      const response = await fetch('http://prisma-api.test/get_loans.php');
+      const response = await authFetch(`${API_BASE_URL}/get_loans.php`);
       const data = await response.json();
       if (data && Array.isArray(data)) setLoans(data);
     } catch (error) { console.error("Gagal mengambil data peminjaman:", error); }
@@ -68,11 +80,11 @@ const App: React.FC = () => {
       }, 5000); 
       return () => clearInterval(interval);
     }
-  }, [currentUser]);
+  }, [currentUser, authToken]);
 
-  const handleLoginSubmit = async (formData: any) => {
+  const handleLoginSubmit = async (formData: any): Promise<boolean> => {
     try {
-      const response = await fetch('http://prisma-api.test/login.php', {
+      const response = await fetch(`${API_BASE_URL}/login.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -80,6 +92,11 @@ const App: React.FC = () => {
       const result = await response.json();
       if (result.status === 'success') {
         setCurrentUser(result.user);
+        if (result.token) {
+          setAuthToken(result.token);
+          localStorage.setItem('token', result.token);
+        }
+        return true;
       } else {
         Swal.fire({
           title: lang === 'id' ? 'Gagal Masuk!' : 'Login Failed!',
@@ -88,6 +105,7 @@ const App: React.FC = () => {
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }
         });
+        return false;
       }
     } catch (error) { 
       Swal.fire({
@@ -97,12 +115,13 @@ const App: React.FC = () => {
         confirmButtonColor: '#5c1313',
         customClass: { popup: 'rounded-[2rem]' }
       });
+      return false;
     }
   };
 
-  const handleRegisterSubmit = async (formData: any) => {
+  const handleRegisterSubmit = async (formData: any): Promise<boolean> => {
     try {
-      const response = await fetch('http://prisma-api.test/register.php', {
+      const response = await fetch(`${API_BASE_URL}/register.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -116,6 +135,7 @@ const App: React.FC = () => {
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }
         });
+        return true;
       } else {
         Swal.fire({
           title: lang === 'id' ? 'Gagal Daftar!' : 'Registration Failed!',
@@ -124,6 +144,7 @@ const App: React.FC = () => {
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }
         });
+        return false;
       }
     } catch (error) { 
       Swal.fire({
@@ -133,12 +154,15 @@ const App: React.FC = () => {
         confirmButtonColor: '#5c1313',
         customClass: { popup: 'rounded-[2rem]' }
       });
+      return false;
     }
   };
 
   const handleSaveNewAsset = async (data: any) => {
+    const isUpdate = !!data.id;
+    const endpoint = isUpdate ? 'update_asset.php' : 'save_asset.php';
     try {
-      const response = await fetch('http://prisma-api.test/save_asset.php', {
+      const response = await authFetch(`${API_BASE_URL}/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -147,7 +171,9 @@ const App: React.FC = () => {
       if (result.status === 'success') {
         Swal.fire({
           title: lang === 'id' ? 'Berhasil!' : 'Success!',
-          text: lang === 'id' ? 'Aset berhasil disimpan!' : 'Asset saved successfully!',
+          text: isUpdate
+            ? (lang === 'id' ? 'Aset berhasil diperbarui!' : 'Asset updated successfully!')
+            : (lang === 'id' ? 'Aset berhasil disimpan!' : 'Asset saved successfully!'),
           icon: 'success',
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }
@@ -176,10 +202,10 @@ const App: React.FC = () => {
 
   const handleLoanSubmit = async (loanData: any) => {
     try {
-      const response = await fetch('http://prisma-api.test/request_loan.php', {
+      const response = await authFetch(`${API_BASE_URL}/request_loan.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...loanData, userId: currentUser?.id })
+        body: JSON.stringify(loanData)
       });
       const result = await response.json();
       if (result.status === 'success') {
@@ -260,13 +286,41 @@ const App: React.FC = () => {
   };
 
   const handleReturnAsset = async (loanId: string) => { 
-    Swal.fire({
-      title: lang === 'id' ? 'Info' : 'Info',
-      text: lang === 'id' ? 'Gunakan menu Monitoring untuk mengembalikan aset.' : 'Use the Monitoring menu to return assets.',
-      icon: 'info',
-      confirmButtonColor: '#5c1313',
-      customClass: { popup: 'rounded-[2rem]' }
-    });
+    try {
+      const response = await authFetch(`${API_BASE_URL}/return_loan.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loanId })
+      });
+      const result = await response.json();
+      if (result.status === 'success') {
+        Swal.fire({
+          title: lang === 'id' ? 'Berhasil!' : 'Success!',
+          text: lang === 'id' ? 'Aset berhasil dikembalikan.' : 'Asset returned successfully.',
+          icon: 'success',
+          confirmButtonColor: '#5c1313',
+          customClass: { popup: 'rounded-[2rem]' }
+        });
+        fetchLoans();
+        fetchAssets();
+      } else {
+        Swal.fire({
+          title: lang === 'id' ? 'Gagal!' : 'Failed!',
+          text: result.message,
+          icon: 'error',
+          confirmButtonColor: '#5c1313',
+          customClass: { popup: 'rounded-[2rem]' }
+        });
+      }
+    } catch (error) {
+      Swal.fire({
+        title: 'Error!',
+        text: lang === 'id' ? 'Gagal terhubung ke server.' : 'Failed to reach the server.',
+        icon: 'error',
+        confirmButtonColor: '#5c1313',
+        customClass: { popup: 'rounded-[2rem]' }
+      });
+    }
   };
 
   const filteredAssets = useMemo(() => {
@@ -324,6 +378,7 @@ const App: React.FC = () => {
         <DashboardMain 
           currentUser={currentUser} 
           setCurrentUser={setCurrentUser} 
+          authToken={authToken}
           lang={lang} 
           setLang={setLang} 
           t={t} 

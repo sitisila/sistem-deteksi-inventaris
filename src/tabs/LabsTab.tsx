@@ -12,6 +12,7 @@ interface LabsTabProps {
 const LabsTab: React.FC<LabsTabProps> = ({ 
   t, assets, selectedLab, setSelectedLab, openLoanForm, currentUser 
 }) => {
+  const labAssets = assets.filter(a => a.lab === (typeof selectedLab === 'object' ? selectedLab?.name : selectedLab));
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {!selectedLab ? (
@@ -52,7 +53,7 @@ const LabsTab: React.FC<LabsTabProps> = ({
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
             <div className="relative z-10">
               <h2 className="text-3xl font-black uppercase tracking-tighter leading-none mb-2">
-                {/* Solusi Pengaman: Cek jika selectedLab ternyata tidak sengaja terisi Objek */}
+
                 {typeof selectedLab === 'object' ? (selectedLab?.name || selectedLab?.id) : selectedLab}
               </h2>
               <p className="text-white/50 font-bold text-xs uppercase tracking-[0.3em]">{t?.labInventory || 'Inventaris Aset Laboratorium'}</p>
@@ -60,8 +61,8 @@ const LabsTab: React.FC<LabsTabProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {assets.filter(a => a.lab === (typeof selectedLab === 'object' ? selectedLab?.name : selectedLab)).length > 0 ? (
-              assets.filter(a => a.lab === (typeof selectedLab === 'object' ? selectedLab?.name : selectedLab)).map((asset) => {
+            {labAssets.length > 0 ? (
+               labAssets.map((asset) => {
                 const isAvailable = asset.status === 'AVAILABLE' || asset.status === 'TERSEDIA';
                 
                 return (

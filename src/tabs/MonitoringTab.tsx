@@ -9,9 +9,8 @@ interface MonitoringTabProps {
 
 const MonitoringTab: React.FC<MonitoringTabProps> = ({ t, loans, onReturnAsset }) => {
   
-
   const activeLoans = useMemo(() => {
-    return loans.filter(loan => loan.status === 'BORROWED' || loan.status === 'APPROVED');
+    return loans.filter(loan => loan.status === 'APPROVED');
   }, [loans]);
 
   const handleConfirmReturn = (loanId: string, assetName: string) => {
@@ -50,9 +49,7 @@ const MonitoringTab: React.FC<MonitoringTabProps> = ({ t, loans, onReturnAsset }
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
                       </div>
-                      <p className="text-gray-300 font-black uppercase tracking-[0.3em] text-[10px]">
-                        {t.noActiveLoan}
-                      </p>
+                      <p className="text-gray-300 font-black uppercase tracking-[0.3em] text-[10px]">{t.noActiveLoan}</p>
                     </div>
                   </td>
                 </tr>
@@ -76,21 +73,19 @@ const MonitoringTab: React.FC<MonitoringTabProps> = ({ t, loans, onReturnAsset }
                       </div>
                     </td>
                     <td className="px-8 py-6 text-gray-500 font-bold text-[11px] uppercase">
-                      {new Date(loan.createdAt).toLocaleDateString(t.lang === 'id' ? 'id-ID' : 'en-US', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      {loan.createdAt ? new Date(loan.createdAt).toLocaleDateString(t.lang === 'id' ? 'id-ID' : 'en-US', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
                     </td>
                     <td className="px-8 py-6">
                       <div className="flex flex-col">
                         <span className="text-brand font-black text-xs uppercase">
-                           {new Date(loan.returnDate).toLocaleDateString(t.lang === 'id' ? 'id-ID' : 'en-US', { day: '2-digit', month: 'short' })}
+                           {loan.returnDate ? new Date(loan.returnDate).toLocaleDateString(t.lang === 'id' ? 'id-ID' : 'en-US', { day: '2-digit', month: 'short' }) : '-'}
                         </span>
                         <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{t.estimatedLabel || 'EST. RETURN'}</span>
                       </div>
                     </td>
                     <td className="px-8 py-6 text-center">
-                      <button 
-                        onClick={() => handleConfirmReturn(loan.id, loan.assetName)}
-                        className="px-6 py-3 bg-utama text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand hover:scale-105 transition-all shadow-xl hover:shadow-brand/20 active:scale-95"
-                      >
+                      <button onClick={() => handleConfirmReturn(loan.id, loan.assetName)}
+                        className="px-6 py-3 bg-utama text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand hover:scale-105 transition-all shadow-xl hover:shadow-brand/20 active:scale-95">
                         {t.confirmReturnBtn}
                       </button>
                     </td>

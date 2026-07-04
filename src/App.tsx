@@ -6,24 +6,31 @@ import DashboardMain from './DashboardMain';
 import QRScanner from './components/QRScanner';
 import Swal from 'sweetalert2'; 
 
+// Membuat tipe data kustom khusus untuk komponen ini agar toleran terhadap properti lama
+type ExtendedAsset = Asset & {
+  name?: string;
+  serialNumber?: string;
+  lab?: string;
+};
+
 const App: React.FC = () => {
   const [lang, setLang] = useState<'id' | 'en'>('id');
   const t = useMemo(() => TRANSLATIONS[lang], [lang]);
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [assets, setAssets] = useState<Asset[]>([]); 
+  const [assets, setAssets] = useState<ExtendedAsset[]>([]); 
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [scannedAsset, setScannedAsset] = useState<Asset | null>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'labs' | 'admin-assets' | 'manage-assets' | 'loans' | 'monitoring'>('home');
+  const [scannedAsset, setScannedAsset] = useState<ExtendedAsset | null>(null);
+  const [activeTab, setActiveTab] = useState<'home' | 'labs' | 'admin-assets' | 'manage-assets' | 'loans' | 'monitoring' | 'history' | 'admin-panel' | string>('home');
   const [selectedLab, setSelectedLab] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState(''); 
 
   const [isLoanFormOpen, setIsLoanFormOpen] = useState(false);
-  const [selectedAssetForLoan, setSelectedAssetForLoan] = useState<Asset | null>(null);
+  const [selectedAssetForLoan, setSelectedAssetForLoan] = useState<ExtendedAsset | null>(null);
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-  const [assetToPrint, setAssetToPrint] = useState<Asset | null>(null);
+  const [assetToPrint, setAssetToPrint] = useState<ExtendedAsset | null>(null);
 
   const labList = useMemo(() => [
     { id: 'Admin', name: 'Ruangan Admin', room: 'Office', color: 'from-gray-600 to-gray-800' },
@@ -37,7 +44,7 @@ const App: React.FC = () => {
 
   const fetchAssets = async () => {
     try {
-      const response = await fetch('http://localhost/prisma-api/get_assets.php');
+      const response = await fetch('http://prisma-api.test/get_assets.php');
       const data = await response.json();
       if (data && Array.isArray(data)) setAssets(data);
     } catch (error) { console.error("Gagal mengambil data aset:", error); }
@@ -45,7 +52,7 @@ const App: React.FC = () => {
 
   const fetchLoans = async () => {
     try {
-      const response = await fetch('http://localhost/prisma-api/get_loans.php');
+      const response = await fetch('http://prisma-api.test/get_loans.php');
       const data = await response.json();
       if (data && Array.isArray(data)) setLoans(data);
     } catch (error) { console.error("Gagal mengambil data peminjaman:", error); }
@@ -65,7 +72,7 @@ const App: React.FC = () => {
 
   const handleLoginSubmit = async (formData: any) => {
     try {
-      const response = await fetch('http://localhost/prisma-api/login.php', {
+      const response = await fetch('http://prisma-api.test/login.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -95,7 +102,7 @@ const App: React.FC = () => {
 
   const handleRegisterSubmit = async (formData: any) => {
     try {
-      const response = await fetch('http://localhost/prisma-api/register.php', {
+      const response = await fetch('http://prisma-api.test/register.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -131,7 +138,7 @@ const App: React.FC = () => {
 
   const handleSaveNewAsset = async (data: any) => {
     try {
-      const response = await fetch('http://localhost/prisma-api/save_asset.php', {
+      const response = await fetch('http://prisma-api.test/save_asset.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -169,7 +176,7 @@ const App: React.FC = () => {
 
   const handleLoanSubmit = async (loanData: any) => {
     try {
-      const response = await fetch('http://localhost/prisma-api/request_loan.php', {
+      const response = await fetch('http://prisma-api.test/request_loan.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...loanData, userId: currentUser?.id })
@@ -221,8 +228,8 @@ const App: React.FC = () => {
           Swal.fire({
             title: lang === 'id' ? 'Tidak Tersedia!' : 'Not Available!',
             text: lang === 'id' 
-              ? `Aset ${foundAsset.name} sedang tidak tersedia (Status: ${foundAsset.status}).`
-              : `Asset ${foundAsset.name} is currently unavailable (Status: ${foundAsset.status}).`,
+              ? `Aset ${foundAsset.name || ''} sedang tidak tersedia (Status: ${foundAsset.status}).`
+              : `Asset ${foundAsset.name || ''} is currently unavailable (Status: ${foundAsset.status}).`,
             icon: 'warning',
             confirmButtonColor: '#5c1313',
             customClass: { popup: 'rounded-[2rem]' }
@@ -276,12 +283,12 @@ const App: React.FC = () => {
     return result;
   }, [assets, activeTab, selectedLab, searchTerm]);
 
-  const openLoanForm = (asset: Asset) => {
+  const openLoanForm = (asset: ExtendedAsset) => {
     setSelectedAssetForLoan(asset);
     setIsLoanFormOpen(true);
   };
 
-  const handlePrint = (asset: Asset) => {
+  const handlePrint = (asset: ExtendedAsset) => {
     setAssetToPrint(asset);
     setIsPrintModalOpen(true);
   };
@@ -320,7 +327,7 @@ const App: React.FC = () => {
           lang={lang} 
           setLang={setLang} 
           t={t} 
-          assets={assets} 
+          assets={assets as any} 
           setAssets={setAssets as any} 
           loans={loans} 
           activeTab={activeTab} 
@@ -339,7 +346,7 @@ const App: React.FC = () => {
           openLoanForm={openLoanForm} 
           handlePrint={handlePrint} 
           labList={labList} 
-          filteredAssets={filteredAssets}
+          filteredAssets={filteredAssets as any}
           onSaveAsset={handleSaveNewAsset}
           onLoanSubmit={handleLoanSubmit}
           onReturnAsset={handleReturnAsset} 

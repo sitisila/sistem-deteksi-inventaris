@@ -14,15 +14,33 @@ if (!empty($data->email) && !empty($data->password)) {
     try {
         $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
         $stmt->execute([$data->email]);
-        $user = $stmt->fetch();
+        
+        // ✔ PERBAIKAN: Memaksa fetch menjadi Array Asosiatif agar aman saat dibaca oleh $user['password']
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($user && $data->password === $user['password']) {
-            echo json_encode(["status" => "success", "user" => $user]);
+        if ($user) {
+            // ✔ PERBAIKAN: Mendukung dua metode (Password teks biasa ATAU Password Bcrypt Hash)
+            // Ini agar akun manual phpMyAdmin teks biasa maupun akun registrasi hash bisa masuk dua-duanya
+            $isPasswordValid = ($data->password === $user['password']) || password_verify($data->password, $user['password']);
+
+            if ($isPasswordValid) {
+                // Menyembunyikan password hash sebelum dikirim ke frontend React demi keamanan
+                unset($user['password']); 
+                
+                echo json_encode([
+                    "status" => "success", 
+                    "user" => $user
+                ]);
+            } else {
+                echo json_encode(["status" => "error", "message" => "Email atau Password salah!"]);
+            }
         } else {
             echo json_encode(["status" => "error", "message" => "Email atau Password salah!"]);
         }
     } catch(PDOException $e) {
-        echo json_encode(["status" => "error", "message" => $e->getMessage()]);
+        echo json_encode(["status" => "error", "message" => "Database error: " . $e->getMessage()]);
     }
+} else {
+    echo json_encode(["status" => "error", "message" => "Email dan Password wajib diisi!"]);
 }
 ?>

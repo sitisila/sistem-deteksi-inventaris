@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') { exit(0); }
 $db_host = "localhost";
 $db_user = "root";       
 $db_pass = "";           
-$db_name = "prisma-api"; 
+$db_name = "prisma_fit"; // ✔ PERBAIKAN: Diubah dari 'prisma-api' menjadi 'prisma_fit' sesuai phpMyAdmin Anda
 
 try {
     $conn = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8", $db_user, $db_pass);
@@ -23,19 +23,33 @@ try {
     exit;
 }
 
-
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
     try {
-        $sql = "SELECT id, fullName, username, email, phoneNumber, nim, role FROM users ORDER BY id DESC";
+        // ✔ PERBAIKAN: Kolom disesuaikan dengan skema database Anda (fullName -> name, phoneNumber -> phone, nim dihapus)
+        $sql = "SELECT id, name, username, email, phone, role FROM users ORDER BY id DESC";
         $stmt = $conn->prepare($sql);
         $stmt->execute();
         $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        // Memetakan ulang key array jika frontend React Anda terlanjur kaku membaca properti lama
+        $formattedUsers = array_map(function($user) {
+            return [
+                "id" => $user['id'],
+                "name" => $user['name'],
+                "fullName" => $user['name'], // Solusi aman untuk React yang mencari fullName
+                "username" => $user['username'],
+                "email" => $user['email'],
+                "phone" => $user['phone'],
+                "phoneNumber" => $user['phone'], // Solusi aman untuk React yang mencari phoneNumber
+                "role" => $user['role']
+            ];
+        }, $users);
+
         echo json_encode([
             "status" => "success",
-            "data" => $users
+            "data" => $formattedUsers
         ]);
     } catch(PDOException $e) {
         http_response_code(500); 
@@ -52,7 +66,8 @@ if ($method === 'POST') {
             $userId = $data->userId;
             $newRole = $data->newRole;
 
-            $allowedRoles = ['Mahasiswa', 'Asisten Laboratorium', 'Dosen', 'Admin'];
+            // Menyamakan sensitivitas huruf besar/kecil agar lolos validasi array
+            $allowedRoles = ['Mahasiswa', 'Asisten Laboratorium', 'Dosen', 'Admin', 'USER', 'ADMIN'];
             if (!in_array($newRole, $allowedRoles)) {
                 http_response_code(400);
                 echo json_encode(["status" => "error", "message" => "Role tidak valid."]);

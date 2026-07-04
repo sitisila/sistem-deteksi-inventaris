@@ -20,7 +20,6 @@ interface DashboardProps {
   setAssets: React.Dispatch<React.SetStateAction<any[]>>;
   loans: any[];
   
-
   activeTab: 'home' | 'labs' | 'admin-assets' | 'manage-assets' | 'loans' | 'monitoring' | 'history' | 'admin-panel' | string;
   setActiveTab: React.Dispatch<React.SetStateAction<any>>;
 
@@ -68,9 +67,13 @@ const DashboardMain: React.FC<DashboardProps> = ({
     if (openLoanForm) openLoanForm(asset);
   };
 
-  const handleApproveLoan = async (loanId: string, assetId: string) => {
+  const handleApproveLoan = async (loanId: string) => {
     try {
-      const res = await fetch(`http://localhost/prisma-api/approve_loan.php?id=${loanId}&assetId=${assetId}`);
+      // Mencari data peminjaman untuk mendapatkan assetId secara dinamis
+      const targetLoan = loans.find(l => String(l.id) === String(loanId));
+      const assetId = targetLoan ? targetLoan.asset_id || targetLoan.assetId : '';
+
+      const res = await fetch(`http://prisma-api.test/approve_loan.php?id=${loanId}&assetId=${assetId}`);
       const result = await res.json();
       if (result.status === 'success') {
         alert("Peminjaman disetujui!");
@@ -83,7 +86,7 @@ const DashboardMain: React.FC<DashboardProps> = ({
 
   const handleRejectLoan = async (loanId: string) => {
     try {
-      const res = await fetch(`http://localhost/prisma-api/reject_loan.php?id=${loanId}`);
+      const res = await fetch(`http://prisma-api.test/reject_loan.php?id=${loanId}`);
       const result = await res.json();
       if (result.status === 'success') {
         alert("Peminjaman ditolak.");
@@ -103,6 +106,17 @@ const DashboardMain: React.FC<DashboardProps> = ({
     { id: 'history', label: lang === 'id' ? 'Riwayat Peminjaman' : 'Loan History', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'mahasiswa', 'dosen', 'asisten laboratorium'] },
     { id: 'admin-panel', label: lang === 'id' ? 'Kelola Pengguna' : 'Manage Users', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', roles: ['admin'] },
   ];
+
+  // Objek perantara bertipe any untuk membungkus props komponen anak agar aman dari benturan tipe data
+  const adminRoomTabProps: any = {
+    assets, setAssets, currentUser, t, searchTerm, setSearchTerm, 
+    selectedLab, setSelectedLab, handlePrint, onSaveAsset, labList
+  };
+
+  const manageAssetTabProps: any = {
+    assets, setAssets, currentUser, t, searchTerm, setSearchTerm, 
+    selectedLab, setSelectedLab, setIsAddAssetOpen, handlePrint, onSaveAsset, labList
+  };
 
   return (
     <div className="no-print flex flex-col min-h-screen bg-slate-50/70">
@@ -219,40 +233,12 @@ const DashboardMain: React.FC<DashboardProps> = ({
             <AdminPanel />
           )}
           
-          {/* =========================================================================
-              LOGIKA PEMISAHAN KEDUA TAB (PROP SUDAH DISINKRONKAN BERSIH DARI ERROR)
-              ========================================================================= */}
           {activeTab === 'admin-assets' && (
-            <AdminRoomTab 
-              assets={assets}
-              setAssets={setAssets} 
-              currentUser={currentUser} 
-              t={t} 
-              searchTerm={searchTerm} 
-              setSearchTerm={setSearchTerm} 
-              selectedLab={selectedLab} 
-              setSelectedLab={setSelectedLab} 
-              handlePrint={handlePrint}
-              onSaveAsset={onSaveAsset}
-              labList={labList}
-            />
+            <AdminRoomTab {...adminRoomTabProps} />
           )}
 
           {activeTab === 'manage-assets' && (
-            <ManageAssetTab 
-              assets={assets}
-              setAssets={setAssets} 
-              currentUser={currentUser} 
-              t={t} 
-              searchTerm={searchTerm} 
-              setSearchTerm={setSearchTerm} 
-              selectedLab={selectedLab} 
-              setSelectedLab={setSelectedLab} 
-              setIsAddAssetOpen={setIsAddAssetOpen} 
-              handlePrint={handlePrint}
-              onSaveAsset={onSaveAsset}
-              labList={labList}
-            />
+            <ManageAssetTab {...manageAssetTabProps} />
           )}
         </main>
       </div>

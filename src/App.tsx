@@ -7,7 +7,7 @@ import QRScanner from './components/QRScanner';
 import Swal from 'sweetalert2'; 
 
 // ✔ PERBAIKAN 1: Mendefinisikan URL API Laragon Anda dan interface ExtendedAsset agar tidak undefined
-const API_BASE_URL = 'http://prisma-api.test'; 
+export const API_BASE_URL = 'http://prisma-api.test'; 
 
 interface ExtendedAsset extends Asset {
   [key: string]: any;

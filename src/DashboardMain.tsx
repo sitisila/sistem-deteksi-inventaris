@@ -59,7 +59,6 @@ const DashboardMain: React.FC<DashboardProps> = ({
     if (openLoanForm) openLoanForm(asset);
   };
 
-  // ✔ PERBAIKAN 1: Menggunakan update sistem token POST bawaan teman Anda dengan domain API_BASE_URL
   const handleApproveLoan = async (loanId: string) => {
     setProcessingLoanId(loanId);
     try {
@@ -88,7 +87,6 @@ const DashboardMain: React.FC<DashboardProps> = ({
     }
   };
 
-  // ✔ PERBAIKAN 2: Sinkronisasi pemanggilan reject_loan dengan Secure API Token
   const handleRejectLoan = async (loanId: string) => {
     setProcessingLoanId(loanId);
     try {
@@ -201,7 +199,7 @@ const DashboardMain: React.FC<DashboardProps> = ({
                     ${activeTab === nav.id 
                       ? 'bg-brand/5 text-brand border-brand font-extrabold' 
                       : 'text-gray-500 border-transparent hover:bg-gray-50 hover:text-utama'}`}
-                 animate-char="true">
+                >
                   <svg className={`w-4 h-4 transition-colors ${activeTab === nav.id ? 'text-brand' : 'text-gray-400 group-hover:text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.3" d={nav.icon} />
                   </svg>

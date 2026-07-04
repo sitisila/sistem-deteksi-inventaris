@@ -4,15 +4,15 @@ header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Content-Type: application/json");
 
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') { exit(0); }
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') { exit(0); } 
 
 $db_host = "localhost";
-$db_user = "root";       
-$db_pass = "";           
-$db_name = "prisma_fit"; // ✔ PERBAIKAN: Diubah dari 'prisma-api' menjadi 'prisma_fit' sesuai phpMyAdmin Anda
+$db_user = "root";
+$db_pass = "";
+$db_name = "prisma_fit";
 
 try {
-    $conn = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8", $db_user, $db_pass);
+    $conn = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8", $db_host == 'localhost' ? $db_user : 'root', $db_pass);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch(PDOException $e) {
     http_response_code(500);
@@ -23,32 +23,31 @@ try {
     exit;
 }
 
-include 'config.php'; 
+include 'config.php';
 include 'auth.php';
 
 $currentUser = requireAuth($conn);
-requireRole($currentUser, ['Admin']); 
+requireRole($currentUser, ['Admin']);
 
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
+    $users = []; // 🔍 Inisialisasi awal mencegah peringatan undefined
     try {
-        // ✔ PERBAIKAN: Kolom disesuaikan dengan skema database Anda (fullName -> name, phoneNumber -> phone, nim dihapus)
         $sql = "SELECT id, name, username, email, phone, role FROM users ORDER BY id DESC";
         $stmt = $conn->prepare($sql);
         $stmt->execute();
         $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Memetakan ulang key array jika frontend React Anda terlanjur kaku membaca properti lama
         $formattedUsers = array_map(function($user) {
             return [
                 "id" => $user['id'],
                 "name" => $user['name'],
-                "fullName" => $user['name'], // Solusi aman untuk React yang mencari fullName
+                "fullName" => $user['name'],
                 "username" => $user['username'],
                 "email" => $user['email'],
                 "phone" => $user['phone'],
-                "phoneNumber" => $user['phone'], // Solusi aman untuk React yang mencari phoneNumber
+                "phoneNumber" => $user['phone'],
                 "role" => $user['role']
             ];
         }, $users);
@@ -60,63 +59,6 @@ if ($method === 'GET') {
     } catch(PDOException $e) {
         http_response_code(500); 
         echo json_encode(["status" => "error", "message" => "Database Error: " . $e->getMessage()]);
-        echo json_encode(["status" => "success", "data" => $users]);
-    } catch (PDOException $e) {
-        error_log("admin_users GET error: " . $e->getMessage());
-        http_response_code(500);
-        echo json_encode(["status" => "error", "message" => "Gagal mengambil data pengguna."]);
-    }
-    exit;
-}
-
-if ($method === 'POST') {
-    $data = json_decode(file_get_contents("php://input"));
-
-    if (!empty($data->userId) && !empty($data->newRole)) {
-        $userId  = $data->userId;
-        $newRole = $data->newRole;
-
-        $allowedRoles = ['Mahasiswa', 'Asisten Laboratorium', 'Dosen', 'Admin'];
-        if (!in_array($newRole, $allowedRoles, true)) {
-            http_response_code(400);
-            echo json_encode(["status" => "error", "message" => "Role tidak valid."]);
-            exit;
-        }
-
-        if ((string)$userId === (string)$currentUser['id']) {
-            http_response_code(400);
-            echo json_encode(["status" => "error", "message" => "Tidak dapat mengubah role akun sendiri."]);
-            exit;
-        }
-
-        try {
-            $userId = $data->userId;
-            $newRole = $data->newRole;
-
-            // Menyamakan sensitivitas huruf besar/kecil agar lolos validasi array
-            $allowedRoles = ['Mahasiswa', 'Asisten Laboratorium', 'Dosen', 'Admin', 'USER', 'ADMIN'];
-            if (!in_array($newRole, $allowedRoles)) {
-                http_response_code(400);
-                echo json_encode(["status" => "error", "message" => "Role tidak valid."]);
-                exit;
-            }
-
-            $sql = "UPDATE users SET role = ? WHERE id = ?";
-            $stmt = $conn->prepare($sql);
-            $stmt->execute([$newRole, $userId]);
-
-            echo json_encode([
-                "status"  => "success",
-                "message" => "Role berhasil diperbarui menjadi " . $newRole
-            ]);
-        } catch (PDOException $e) {
-            error_log("admin_users POST error: " . $e->getMessage());
-            http_response_code(500);
-            echo json_encode(["status" => "error", "message" => "Gagal memperbarui role."]);
-        }
-    } else {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "Data tidak lengkap."]);
     }
     exit;
 }

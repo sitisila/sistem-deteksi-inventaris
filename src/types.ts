@@ -1,4 +1,3 @@
-
 export enum Role {
   ADMIN = 'ADMIN',
   DOSEN = 'DOSEN',
@@ -31,6 +30,9 @@ export interface Asset {
   status: 'AVAILABLE' | 'BORROWED' | 'MAINTENANCE';
   qrCodeUrl: string;
   lastBorrowedBy?: string;
+  // 🔍 TAMBAHKAN DUA BARIS INI BIAR FILTER DAN SCAN KODE AMAN:
+  serialNumber?: string; 
+  lab?: string;          
 }
 
 export interface Loan {

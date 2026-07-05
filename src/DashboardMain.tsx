@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import HomeTab from './tabs/HomeTab';
-import AdminRoomTab from './tabs/AdminRoomTab'; 
 import ManageAssetTab from './tabs/ManageAssetTab';
 import LabsTab from './tabs/LabsTab';
 import AddAssetModal from './tabs/EditAssetModal'; 
@@ -22,7 +21,7 @@ interface DashboardProps {
   assets: any[];
   setAssets: React.Dispatch<React.SetStateAction<any[]>>;
   loans: any[];
-  activeTab: 'home' | 'labs' | 'admin-assets' | 'manage-assets' | 'loans' | 'monitoring' | 'history' | 'admin-panel' | string;
+  activeTab: 'home' | 'labs' | 'manage-assets' | 'loans' | 'monitoring' | 'history' | 'admin-panel' | string;
   setActiveTab: React.Dispatch<React.SetStateAction<any>>;
   selectedLab: string | null;
   setSelectedLab: (lab: string | null) => void;
@@ -40,13 +39,15 @@ interface DashboardProps {
   onSaveAsset: (data: any) => void; 
   onLoanSubmit: (data: any) => void;
   onReturnAsset?: (loanId: string) => void; 
+  onRejectReturn?: (loanId: string) => void; // 🎯 FIX 1: Daftarkan properti ini ke interface agar dikenal TypeScript
 }
 
 const DashboardMain: React.FC<DashboardProps> = ({
   currentUser, setCurrentUser, authToken, lang, setLang, t, assets, setAssets, loans, activeTab, setActiveTab, 
   selectedLab, setSelectedLab, setIsScannerOpen, setIsAddAssetOpen, isAddAssetOpen, 
   isLoanFormOpen, setIsLoanFormOpen, selectedAssetForLoan, setSelectedAssetForLoan,
-  openLoanForm, handlePrint, labList, filteredAssets, onSaveAsset, onLoanSubmit, onReturnAsset 
+  openLoanForm, handlePrint, labList, filteredAssets, onLoanSubmit, onReturnAsset,
+  onRejectReturn // 🎯 FIX 2: Tangkap propertinya di sini agar bisa dioper ke tab
 }) => {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -75,13 +76,13 @@ const DashboardMain: React.FC<DashboardProps> = ({
       });
       const result = await res.json();
       if (result.status === 'success') {
-        Swal.fire({ title: 'Berhasil!', text: 'Peminjaman disetujui!', icon: 'success', confirmButtonColor: '#5c1313' });
+        Swal.fire({ title: 'Berhasil!', text: 'Peminjaman disetujui woi!', icon: 'success', confirmButtonColor: '#5c1313', customClass: { popup: 'rounded-[2rem]' } });
       } else {
-        Swal.fire({ title: 'Gagal!', text: result.message, icon: 'error', confirmButtonColor: '#5c1313' });
+        Swal.fire({ title: 'Gagal!', text: result.message, icon: 'error', confirmButtonColor: '#5c1313', customClass: { popup: 'rounded-[2rem]' } });
       }
     } catch (error) {
       console.error("Error approving loan:", error);
-      Swal.fire({ title: 'Error!', text: 'Gagal menghubungi server.', icon: 'error', confirmButtonColor: '#5c1313' });
+      Swal.fire({ title: 'Error!', text: 'Gagal menghubungi server.', icon: 'error', confirmButtonColor: '#5c1313', customClass: { popup: 'rounded-[2rem]' } });
     } finally {
       setProcessingLoanId(null);
     }
@@ -100,37 +101,91 @@ const DashboardMain: React.FC<DashboardProps> = ({
       });
       const result = await res.json();
       if (result.status === 'success') {
-        Swal.fire({ title: 'Berhasil', text: 'Peminjaman ditolak.', icon: 'success', confirmButtonColor: '#5c1313' });
+        Swal.fire({ title: 'Berhasil', text: 'Peminjaman ditolak.', icon: 'success', confirmButtonColor: '#5c1313', customClass: { popup: 'rounded-[2rem]' } });
       } else {
-        Swal.fire({ title: 'Gagal!', text: result.message, icon: 'error', confirmButtonColor: '#5c1313' });
+        Swal.fire({ title: 'Gagal!', text: result.message, icon: 'error', confirmButtonColor: '#5c1313', customClass: { popup: 'rounded-[2rem]' } });
       }
     } catch (error) {
       console.error("Error rejecting loan:", error);
-      Swal.fire({ title: 'Error!', text: 'Gagal terhubung ke server.', icon: 'error', confirmButtonColor: '#5c1313' });
+      Swal.fire({ title: 'Error!', text: 'Gagal terhubung ke server.', icon: 'error', confirmButtonColor: '#5c1313', customClass: { popup: 'rounded-[2rem]' } });
     } finally {
       setProcessingLoanId(null);
     }
   };
 
-  const navItems = [
-    { id: 'home', label: lang === 'id' ? 'Beranda' : 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6', roles: ['admin', 'mahasiswa', 'dosen', 'asisten laboratorium'] },
-    { id: 'labs', label: lang === 'id' ? 'Daftar Laboratorium' : 'Laboratory List', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5', roles: ['admin', 'mahasiswa', 'dosen', 'asisten laboratorium'] },
-    { id: 'admin-assets', label: lang === 'id' ? 'Aset Laboratorium' : 'Lab Assets', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944', roles: ['admin', 'mahasiswa', 'dosen', 'asisten laboratorium'] },
-    { id: 'manage-assets', label: lang === 'id' ? 'Kelola Aset' : 'Manage Assets', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11', roles: ['admin', 'asisten laboratorium'] },
-    { id: 'loans', label: lang === 'id' ? 'Persetujuan Peminjaman' : 'Loan Approvals', icon: 'M9 12l2 2 4-4', roles: ['admin', 'asisten laboratorium'] },
-    { id: 'monitoring', label: lang === 'id' ? 'Pemantauan Aktif' : 'Active Monitoring', icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z', roles: ['admin', 'dosen', 'asisten laboratorium'] },
-    { id: 'history', label: lang === 'id' ? 'Riwayat Peminjaman' : 'Loan History', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'mahasiswa', 'dosen', 'asisten laboratorium'] },
-    { id: 'admin-panel', label: lang === 'id' ? 'Kelola Pengguna' : 'Manage Users', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', roles: ['admin'] },
-  ];
+  const onSaveAssetHandler = async (formData: any) => {
+    try {
+      const token = authToken || localStorage.getItem('token') || localStorage.getItem('authToken');
+      const cleanId = formData.id || formData.asset_id || formData.assetId;
 
-  const adminRoomTabProps: any = {
-    assets, setAssets, currentUser, t, searchTerm, setSearchTerm, 
-    selectedLab, setSelectedLab, handlePrint, onSaveAsset, labList
+      const payloadData = {
+        ...formData,
+        id: cleanId 
+      };
+
+      const res = await fetch(`${API_BASE_URL}/save_asset.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payloadData)
+      });
+
+      const result = await res.json();
+
+      if (result.status === 'success') {
+        Swal.fire({
+          title: 'Berhasil!',
+          text: result.message || 'Data aset berhasil disimpan.',
+          icon: 'success',
+          confirmButtonColor: '#5c1313',
+          customClass: { popup: 'rounded-[2rem]' }
+        });
+        
+        const refreshRes = await fetch(`${API_BASE_URL}/get_assets.php`);
+        if (refreshRes.ok) {
+          const freshData = await refreshRes.json();
+          if (Array.isArray(freshData)) {
+            setAssets(freshData); 
+          }
+        }
+        
+        setIsAddAssetOpen(false);
+      } else {
+        Swal.fire({
+          title: 'Gagal!',
+          text: result.message || 'Gagal menyimpan data aset.',
+          icon: 'error',
+          confirmButtonColor: '#5c1313',
+          customClass: { popup: 'rounded-[2rem]' }
+        });
+      }
+    } catch (error) {
+      console.error("Error saving asset:", error);
+      Swal.fire({
+        title: 'Gagal!',
+        text: 'Gagal terhubung ke database server.',
+        icon: 'error',
+        confirmButtonColor: '#5c1313',
+        customClass: { popup: 'rounded-[2rem]' }
+      });
+    }
   };
+
+  const navItems = [
+    { id: 'home', label: lang === 'id' ? 'Beranda' : 'Dashboard', icon: 'M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25', roles: ['admin', 'mahasiswa', 'dosen', 'asisten laboratorium'] },
+    { id: 'labs', label: lang === 'id' ? 'Daftar Laboratorium' : 'Laboratory List', icon: 'M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z', roles: ['admin', 'mahasiswa', 'dosen', 'asisten laboratorium'] },
+    { id: 'manage-assets', label: lang === 'id' ? 'Kelola Aset' : 'Manage Assets', icon: 'M10.34 15.84c-.68.68-1.79.68-2.47 0M12 9V3m0 3c-1.66 0-3 1.34-3 3v.17c0 .44-.24.84-.62 1.06l-1.63.94c-.4.23-.65.66-.65 1.13v2.2c0 .47.25.9.65 1.13l1.63.94c.38.22.62.62.62 1.06V18c0 1.66 1.34 3 3 3s3-1.34 3-3v-.17c0-.44.24-.84.62-1.06l1.63-.94c.4-.23.65-.66.65-1.13v-2.2c0-.47-.25-.9-.65-1.13l-1.63-.94c-.38-.22-.62-.62-.62-1.06V9c0-1.66-1.34-3-3-3z', roles: ['admin', 'asisten laboratorium'] },
+    { id: 'loans', label: lang === 'id' ? 'Persetujuan Peminjaman' : 'Loan Approvals', icon: 'M9 12.75L11.25 15 15 9.75M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z', roles: ['admin', 'asisten laboratorium'] },
+    { id: 'monitoring', label: lang === 'id' ? 'Pemantauan Aktif' : 'Active Monitoring', icon: 'M2.036 12.322a1.012 1.012 0 010-.644M21.396 11.32c.252.31.252.834 0 1.142Q18 17.5 12 17.5c-6 0-9.316-4.538-9.358-4.758a1.012 1.012 0 010-.644Q6 6.5 12 6.5c6 0 9.316 4.538 9.396 4.82zM15 12a3 3 0 11-6 0 3 3 0 016 0z', roles: ['admin', 'dosen', 'asisten laboratorium'] },
+    { id: 'history', label: lang === 'id' ? 'Riwayat Peminjaman' : 'Loan History', icon: 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'mahasiswa', 'dosen', 'asisten laboratorium'] },
+    { id: 'admin-panel', label: lang === 'id' ? 'Kelola Pengguna' : 'Manage Users', icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z', roles: ['admin'] },
+  ];
 
   const manageAssetTabProps: any = {
     assets, setAssets, currentUser, t, searchTerm, setSearchTerm, 
-    selectedLab, setSelectedLab, setIsAddAssetOpen, handlePrint, onSaveAsset, labList
+    selectedLab, setSelectedLab, setIsAddAssetOpen, handlePrint, onSaveAsset: onSaveAssetHandler, labList, authToken
   };
 
   return (
@@ -211,19 +266,28 @@ const DashboardMain: React.FC<DashboardProps> = ({
             <div className="px-6 py-3">
               <button 
                 onClick={() => setIsScannerOpen(true)} 
-                className="w-full py-3.5 bg-gradient-to-r from-brand to-[#4a0d0d] text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-md shadow-brand/20 hover:from-[#4a0d0d] hover:to-brand transition-all duration-300 transform hover:-translate-y-0.5"
+                className="w-full py-3.5 bg-gradient-to-r from-brand to-[#4a0d0d] text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 transform hover:-translate-y-0.5 shadow-md shadow-brand/20 flex items-center justify-center gap-2.5 whitespace-nowrap"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m0 11v1m4-6h1m-11 0h1m5-4v3m-1 1h2" />
+                <svg className="w-4 h-4 text-white/90 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v1m0 11v1m4-6h1m-11 0h1m5-4v3m-1 1h2" />
                 </svg>
-                {t?.scanBtn || 'PINDAI QR CODE'}
+                <span>{t?.scanBtn || 'PINDAI QR CODE'}</span>
               </button>
             </div>
           </nav>
         </aside>
 
         <main className="flex-1 w-full bg-white rounded-[1.5rem] lg:rounded-[2rem] shadow-xl shadow-black/5 p-6 lg:p-8 border border-gray-100/60 min-h-[550px] transition-all duration-500 overflow-hidden">
-          {activeTab === 'home' && <HomeTab t={t} assets={assets} loans={loans} setActiveTab={setActiveTab} currentUser={currentUser} />}
+          {activeTab === 'home' && (
+            <HomeTab 
+              t={t} 
+              assets={assets} 
+              loans={loans} 
+              setActiveTab={setActiveTab} 
+              currentUser={currentUser} 
+              onLoanSubmit={onLoanSubmit} 
+            />
+          )}
           
           {activeTab === 'labs' && (
             <LabsTab 
@@ -236,18 +300,20 @@ const DashboardMain: React.FC<DashboardProps> = ({
             <ApprovalTab t={t} loans={loans} onApprove={handleApproveLoan} onReject={handleRejectLoan} processingLoanId={processingLoanId} />
           )}
           
+          {/* 🎯 FIX 3: Oper onRejectReturn ke MonitoringTab agar kontrak data terpenuhi sempurna */}
           {activeTab === 'monitoring' && (
-            <MonitoringTab t={t} loans={loans} onReturnAsset={(id) => onReturnAsset ? onReturnAsset(id) : undefined} />
+            <MonitoringTab 
+              t={t} 
+              loans={loans} 
+              onReturnAsset={(id) => onReturnAsset ? onReturnAsset(id) : undefined} 
+              onRejectReturn={(id) => onRejectReturn ? onRejectReturn(id) : undefined} 
+            />
           )}
           
           {activeTab === 'history' && <HistoryTab t={t} loans={loans} currentUser={currentUser} />}
           
           {activeTab === 'admin-panel' && currentUser?.role?.toLowerCase() === 'admin' && (
             <AdminPanel authToken={authToken} />
-          )}
-          
-          {activeTab === 'admin-assets' && (
-            <AdminRoomTab {...adminRoomTabProps} />
           )}
 
           {activeTab === 'manage-assets' && (
@@ -261,7 +327,8 @@ const DashboardMain: React.FC<DashboardProps> = ({
         onClose={() => setIsAddAssetOpen(false)} 
         labList={labList} 
         t={t} 
-        onSave={(data) => onSaveAsset(data)} 
+        authToken={authToken}
+        onSave={(data) => onSaveAssetHandler(data)} 
       />
       
       <LoanRequestModal 
@@ -274,4 +341,4 @@ const DashboardMain: React.FC<DashboardProps> = ({
   );
 };
 
-export default DashboardMain;
+export default DashboardMain; 

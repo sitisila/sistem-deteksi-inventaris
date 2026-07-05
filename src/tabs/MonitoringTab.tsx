@@ -1,100 +1,86 @@
 import React, { useMemo } from 'react';
-import { Loan } from '../types'; 
 
 interface MonitoringTabProps {
   t: any;
-  loans: Loan[];
-  onReturnAsset: (loanId: string) => void;
+  loans: any[]; 
+  onReturnAsset: (loanId: string) => void; // Aksi centang (Konfirmasi)
+  onRejectReturn: (loanId: string) => void; // Aksi silang (Tolak pengembalian)
 }
 
-const MonitoringTab: React.FC<MonitoringTabProps> = ({ t, loans, onReturnAsset }) => {
-  
-  const activeLoans = useMemo(() => {
-    return loans.filter(loan => loan.status === 'APPROVED');
-  }, [loans]);
+const MonitoringTab: React.FC<MonitoringTabProps> = ({ t, loans, onReturnAsset, onRejectReturn }) => {
 
-  const handleConfirmReturn = (loanId: string, assetName: string) => {
-    if (window.confirm(`${t.confirmReturnAlert}${assetName}${t.confirmReturnSubAlert}`)) {
-      onReturnAsset(loanId);
-    }
-  };
+  const allMonitoredLoans = useMemo(() => {
+    return loans?.filter(loan => {
+      const statusText = String(loan.status || '').toUpperCase();
+      // Tampilkan status aktif dan yang sedang menunggu konfirmasi pengembalian
+      return ['APPROVED', 'DIPINJAM', 'ACTIVE', 'RETURN_REQUESTED', 'DIKEMBALIKAN', 'RETURNED'].includes(statusText);
+    }) || [];
+  }, [loans]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-center px-2">
-        <h3 className="text-2xl lg:text-3xl font-black text-utama tracking-tighter uppercase">
-          {t.monitoringTitle} <span className="text-brand">({activeLoans.length})</span>
+        <h3 className="text-3xl font-black text-utama tracking-tighter uppercase leading-none">
+          MONITORING ASET <span className="text-brand">({allMonitoredLoans.length})</span>
         </h3>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-2xl shadow-zinc-200/50 overflow-hidden mx-2">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-zinc-50/50 text-gray-400 text-left text-[10px] uppercase tracking-[0.2em] font-black border-bottom border-gray-50">
-              <tr>
-                <th className="px-8 py-6">{t.thBorrower}</th>
-                <th className="px-8 py-6">{t.thDeviceInfo}</th>
-                <th className="px-8 py-6">{t.thBorrowTime}</th>
-                <th className="px-8 py-6">{t.thReturnEst}</th>
-                <th className="px-8 py-6 text-center">{t.thStatusAction}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {activeLoans.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-24">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="w-20 h-20 bg-zinc-50 rounded-full flex items-center justify-center border border-zinc-100">
-                        <svg className="w-8 h-8 text-zinc-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                      </div>
-                      <p className="text-gray-300 font-black uppercase tracking-[0.3em] text-[10px]">{t.noActiveLoan}</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                activeLoans.map(loan => (
-                  <tr key={loan.id} className="hover:bg-brand/[0.02] transition-colors group">
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-2xl bg-utama flex items-center justify-center text-white font-black text-xs uppercase shadow-lg shadow-zinc-200 group-hover:bg-brand transition-colors">
-                          {loan.userName?.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-black text-utama uppercase tracking-tight leading-none mb-1.5">{loan.userName}</p>
-                          <p className="text-[10px] text-gray-400 font-bold lowercase tracking-wide">{loan.userEmail}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="bg-zinc-50 px-4 py-2 rounded-xl border border-zinc-100 inline-block font-black text-xs text-utama uppercase tracking-tight">
-                        {loan.assetName}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-gray-500 font-bold text-[11px] uppercase">
-                      {loan.createdAt ? new Date(loan.createdAt).toLocaleDateString(t.lang === 'id' ? 'id-ID' : 'en-US', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex flex-col">
-                        <span className="text-brand font-black text-xs uppercase">
-                           {loan.returnDate ? new Date(loan.returnDate).toLocaleDateString(t.lang === 'id' ? 'id-ID' : 'en-US', { day: '2-digit', month: 'short' }) : '-'}
-                        </span>
-                        <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">{t.estimatedLabel || 'EST. RETURN'}</span>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6 text-center">
-                      <button onClick={() => handleConfirmReturn(loan.id, loan.assetName)}
-                        className="px-6 py-3 bg-utama text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-brand hover:scale-105 transition-all shadow-xl hover:shadow-brand/20 active:scale-95">
-                        {t.confirmReturnBtn}
+      <div className="grid grid-cols-1 gap-4">
+        {allMonitoredLoans.length > 0 ? (
+          allMonitoredLoans.map((loan) => {
+            const idLogistik = loan.id || loan.loan_id || '';
+            const namaAset = loan.assetName || loan.asset_name || loan.name || 'Aset Tidak Diketahui';
+            const emailPeminjam = loan.userName || loan.name || loan.username || loan.email || '-';
+            
+            const statusText = String(loan.status || '').toUpperCase();
+            const isReturnRequested = statusText === 'RETURN_REQUESTED';
+            const isReturned = ['DIKEMBALIKAN', 'RETURNED'].includes(statusText);
+
+            return (
+              <div key={idLogistik} className="bg-white border border-gray-100 p-6 rounded-[2rem] flex flex-col md:flex-row md:items-center justify-between hover:shadow-lg transition-all">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black text-brand uppercase tracking-wider bg-brand/5 px-2.5 py-1 rounded-md">LOGISTIK</span>
+                    <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-md ${
+                      isReturned ? 'bg-green-100 text-green-700' : 
+                      isReturnRequested ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700'
+                    }`}>
+                      {isReturned ? 'SUDAH DIKEMBALIKAN' : isReturnRequested ? 'MENUNGGU KONFIRMASI' : 'AKTIF DIPINJAM'}
+                    </span>
+                  </div>
+                  
+                  <h4 className="font-black text-gray-950 uppercase text-lg pt-1.5 leading-none">{namaAset}</h4>
+                  <p className="text-xs font-bold text-gray-500 pt-0.5">Peminjam: <span className="text-gray-800 uppercase">{emailPeminjam}</span></p>
+                  <p className="text-[11px] font-medium text-gray-400">
+                    Tanggal: <span className="text-utama font-bold">{loan.loan_date}</span> | Waktu: <span className="text-brand font-bold">{loan.borrowTime?.substring(0, 5)} - {loan.returnTime?.substring(0, 5)} WIB</span>
+                  </p>
+                </div>
+
+                {/* 🎯 AKSI: Jika ada pengajuan pengembalian, munculkan centang & silang */}
+                <div className="mt-4 md:mt-0 shrink-0">
+                  {isReturnRequested ? (
+                    <div className="flex gap-2">
+                      <button onClick={() => onReturnAsset(idLogistik)} className="p-3 bg-green-100 text-green-600 rounded-xl hover:bg-green-200 transition-all">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
                       </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                      <button onClick={() => onRejectReturn(idLogistik)} className="p-3 bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition-all">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                      </button>
+                    </div>
+                  ) : !isReturned ? (
+                    <div className="px-6 py-3 bg-gray-50 text-gray-400 font-black text-[9px] uppercase tracking-widest rounded-xl">PINJAMAN AKTIF</div>
+                  ) : (
+                    <div className="px-6 py-3 bg-green-50 text-green-600 font-black text-[9px] uppercase tracking-widest rounded-xl">SELESAI</div>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="py-20 text-center bg-[#FDFDFD] rounded-[2rem] border border-dashed border-gray-200 text-gray-400 font-bold uppercase tracking-widest text-xs">
+            Tidak ada peminjaman yang perlu dipantau saat ini woi.
+          </div>
+        )}
       </div>
     </div>
   );

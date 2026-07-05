@@ -6,26 +6,34 @@ import DashboardMain from './DashboardMain';
 import QRScanner from './components/QRScanner';
 import Swal from 'sweetalert2'; 
 
-// ✔ PERBAIKAN 1: Mendefinisikan URL API Laragon Anda dan interface ExtendedAsset agar tidak undefined
-export const API_BASE_URL = 'http://prisma-api.test'; 
+// URL API Backend PHP Kelompok Lu
+export const API_BASE_URL = 'http://localhost/prisma-api';
 
-interface ExtendedAsset extends Asset {
-  [key: string]: any;
-}
+type ExtendedAsset = Asset & {
+  name?: string;
+  serialNumber?: string;
+  lab?: string;
+};
 
 const App: React.FC = () => {
   const [lang, setLang] = useState<'id' | 'en'>('id');
   const t = useMemo(() => TRANSLATIONS[lang], [lang]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  
-  // ✔ PERBAIKAN 2: Menambahkan state token autentikasi yang dibawa oleh update sistem teman Anda
-  const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('token'));
-  
-  const [assets, setAssets] = useState<Asset[]>([]); 
+
+  // 🔄 FIX ANTI-LOGOUT: Mengambil sesi ril langsung dari localStorage
+  const [authToken, setAuthToken] = useState<string | null>(() => {
+    return localStorage.getItem('authToken') || localStorage.getItem('token');
+  });
+
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('currentUser');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+
+  const [assets, setAssets] = useState<ExtendedAsset[]>([]); 
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannedAsset, setScannedAsset] = useState<ExtendedAsset | null>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'labs' | 'admin-assets' | 'manage-assets' | 'loans' | 'monitoring' | 'history' | 'admin-panel' | string>('home');
+  const [activeTab, setActiveTab] = useState<string>('home');
   const [selectedLab, setSelectedLab] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState(''); 
 
@@ -33,7 +41,25 @@ const App: React.FC = () => {
   const [selectedAssetForLoan, setSelectedAssetForLoan] = useState<ExtendedAsset | null>(null);
   const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-  const [assetToPrint, setAssetToPrint] = useState<Asset | null>(null);
+  const [assetToPrint, setAssetToPrint] = useState<ExtendedAsset | null>(null);
+
+  // Helper fetch otomatis menyertakan token otentikasi Bearer dengan Headers standar
+  const authFetch = (url: string, options: RequestInit = {}) => {
+    const token = authToken || localStorage.getItem('authToken') || localStorage.getItem('token');
+    
+    const clientHeaders = new Headers(options.headers || {});
+    if (token) {
+      clientHeaders.set('Authorization', `Bearer ${token}`);
+    }
+    if (!clientHeaders.has('Content-Type') && options.body) {
+      clientHeaders.set('Content-Type', 'application/json');
+    }
+
+    return fetch(url, {
+      ...options,
+      headers: clientHeaders
+    });
+  };
 
   const labList = useMemo(() => [
     { id: 'Admin', name: 'Ruangan Admin', room: 'Office', color: 'from-gray-600 to-gray-800' },
@@ -45,15 +71,7 @@ const App: React.FC = () => {
     { id: 'CellComm', name: 'Cellular Communication (CellComm) Laboratory', room: 'A1', color: 'from-cyan-500 to-cyan-700' },
   ], []);
 
-  // ✔ PERBAIKAN 3: Membuat helper fungsi authFetch agar request menyertakan token Bearer secara otomatis
-  const authFetch = async (url: string, options: RequestInit = {}) => {
-    const headers = new Headers(options.headers || {});
-    if (authToken) {
-      headers.set('Authorization', `Bearer ${authToken}`);
-    }
-    return fetch(url, { ...options, headers });
-  };
-
+  // Ambil data segar dari MySQL
   const fetchAssets = async () => {
     try {
       const response = await authFetch(`${API_BASE_URL}/get_assets.php`);
@@ -70,6 +88,7 @@ const App: React.FC = () => {
     } catch (error) { console.error("Gagal mengambil data peminjaman:", error); }
   };
 
+  // Sinkronisasi data berkala dari database
   useEffect(() => {
     if (currentUser) {
       fetchAssets();
@@ -80,7 +99,33 @@ const App: React.FC = () => {
       }, 5000); 
       return () => clearInterval(interval);
     }
-  }, [currentUser, authToken]);
+  }, [currentUser]);
+
+  // 🎯 TRIGGER REFRESH OTOMATIS SAAT ADA EVENT HAPUS LOGISTIK
+  useEffect(() => {
+    const handleRefreshTrigger = () => {
+      fetchLoans();
+    };
+    window.addEventListener('refreshLoansData', handleRefreshTrigger);
+    return () => window.removeEventListener('refreshLoansData', handleRefreshTrigger);
+  }, []);
+
+  useEffect(() => {
+    if (authToken) {
+      localStorage.setItem('authToken', authToken);
+    } else {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('token');
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('currentUser');
+    }
+  }, [currentUser]);
 
   const handleLoginSubmit = async (formData: any): Promise<boolean> => {
     try {
@@ -92,10 +137,7 @@ const App: React.FC = () => {
       const result = await response.json();
       if (result.status === 'success') {
         setCurrentUser(result.user);
-        if (result.token) {
-          setAuthToken(result.token);
-          localStorage.setItem('token', result.token);
-        }
+        setAuthToken(result.token);
         return true;
       } else {
         Swal.fire({
@@ -164,7 +206,6 @@ const App: React.FC = () => {
     try {
       const response = await authFetch(`${API_BASE_URL}/${endpoint}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
       const result = await response.json();
@@ -204,33 +245,36 @@ const App: React.FC = () => {
     try {
       const response = await authFetch(`${API_BASE_URL}/request_loan.php`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(loanData)
       });
+      
       const result = await response.json();
+      
       if (result.status === 'success') {
         Swal.fire({
           title: lang === 'id' ? 'Berhasil!' : 'Success!',
-          text: lang === 'id' ? 'Permintaan peminjaman berhasil terkirim!' : 'Loan request sent successfully!',
+          text: lang === 'id' ? 'Permintaan peminjaman berhasil terkirim woi!' : 'Loan request sent successfully!',
           icon: 'success',
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }
         });
         setIsLoanFormOpen(false); 
         fetchLoans();
+        fetchAssets();
       } else { 
         Swal.fire({
           title: lang === 'id' ? 'Gagal!' : 'Failed!',
-          text: (lang === 'id' ? 'Gagal: ' : 'Failed: ') + result.message,
+          text: (lang === 'id' ? 'Gagal: ' : 'Failed: ') + (result.message || 'Respons server tidak valid.'),
           icon: 'error',
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }
         });
       }
     } catch (error) { 
+      console.error("Crash Fetch request_loan:", error);
       Swal.fire({
-        title: 'Error!',
-        text: lang === 'id' ? 'Error koneksi saat meminjam.' : 'Connection error during loan request.',
+        title: 'Error Peminjaman!',
+        text: lang === 'id' ? 'Koneksi ke server API backend bermasalah woi!' : 'Connection error during loan request.',
         icon: 'error',
         confirmButtonColor: '#5c1313',
         customClass: { popup: 'rounded-[2rem]' }
@@ -247,7 +291,9 @@ const App: React.FC = () => {
 
       if (foundAsset) {
         setIsScannerOpen(false); 
-        if (foundAsset.status === 'AVAILABLE') { 
+        
+        const currentStatus = String(foundAsset.status).toLowerCase();
+        if (currentStatus === 'available' || currentStatus === 'tersedia') { 
           setSelectedAssetForLoan(foundAsset); 
           setIsLoanFormOpen(true); 
         } else { 
@@ -289,7 +335,6 @@ const App: React.FC = () => {
     try {
       const response = await authFetch(`${API_BASE_URL}/return_loan.php`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ loanId })
       });
       const result = await response.json();
@@ -323,16 +368,44 @@ const App: React.FC = () => {
     }
   };
 
+  // 🎯 FUNGSI BARU UNTUK TOLAK PENGAJUAN PENGEMBALIAN PADA TAB ACTIVE MONITORING
+  const handleRejectReturn = async (loanId: string) => {
+    try {
+      const response = await authFetch(`${API_BASE_URL}/reject_return.php`, {
+        method: 'POST',
+        body: JSON.stringify({ id: loanId })
+      });
+      const result = await response.json();
+      if (result.status === 'success') {
+        Swal.fire({
+          title: lang === 'id' ? 'Berhasil!' : 'Success!',
+          text: lang === 'id' ? 'Pengajuan pengembalian berhasil ditolak woi.' : 'Return request successfully rejected.',
+          icon: 'info',
+          confirmButtonColor: '#5c1313',
+          customClass: { popup: 'rounded-[2rem]' }
+        });
+        fetchLoans();
+        fetchAssets();
+      }
+    } catch (err) {
+      console.error("Crash Fetch reject_return:", err);
+    }
+  };
+
   const filteredAssets = useMemo(() => {
     let result = assets;
     if (activeTab === 'admin-assets') result = assets.filter(a => a.lab === 'Ruangan Admin');
     else if (activeTab === 'labs' && selectedLab) result = assets.filter(a => a.lab === selectedLab);
     
     if (searchTerm) {
-      result = result.filter(a => 
-        (a.name?.toLowerCase().includes(searchTerm.toLowerCase())) || 
-        (a.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
+      result = result.filter(a => {
+        const assetObj = a as any;
+        return (
+          (a.name?.toLowerCase().includes(searchTerm.toLowerCase())) || 
+          (assetObj.asset_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (a.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+      });
     }
     return result;
   }, [assets, activeTab, selectedLab, searchTerm]);
@@ -353,13 +426,19 @@ const App: React.FC = () => {
     return () => window.removeEventListener('afterprint', afterPrint);
   }, []);
 
+  const SafeLogin = Login as React.ComponentType<any>;
+
   if (!currentUser) {
     return (
-      <Login 
+      <SafeLogin 
         lang={lang} setLang={setLang} t={t}
         onLogin={handleLoginSubmit} 
         onRegister={handleRegisterSubmit} 
         onForgotPassword={handleForgotPassword}
+        onLoginSuccess={(token: string, user: any) => {
+          setAuthToken(token);
+          setCurrentUser(user);
+        }}
       />
     );
   }
@@ -405,6 +484,7 @@ const App: React.FC = () => {
           onSaveAsset={handleSaveNewAsset}
           onLoanSubmit={handleLoanSubmit}
           onReturnAsset={handleReturnAsset} 
+          onRejectReturn={handleRejectReturn} // 🎯 OPER PADA PROPS DASHBOARDMAIN
         />
 
         {isScannerOpen && (

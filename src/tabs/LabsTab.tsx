@@ -12,7 +12,19 @@ interface LabsTabProps {
 const LabsTab: React.FC<LabsTabProps> = ({ 
   t, assets, selectedLab, setSelectedLab, openLoanForm, currentUser 
 }) => {
-  const labAssets = assets.filter(a => a.lab === (typeof selectedLab === 'object' ? selectedLab?.name : selectedLab));
+  
+  // Normalisasi pencocokan nama Lab agar tidak sensitif huruf kapital/spasi
+  const labAssets = assets.filter(a => {
+    if (!selectedLab) return false;
+    
+    const targetLabName = typeof selectedLab === 'object' ? selectedLab?.name : selectedLab;
+    
+    const assetLabClean = String(a.lab || '').trim().toLowerCase();
+    const targetLabClean = String(targetLabName || '').trim().toLowerCase();
+    
+    return assetLabClean === targetLabClean;
+  });
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {!selectedLab ? (
@@ -36,7 +48,9 @@ const LabsTab: React.FC<LabsTabProps> = ({
                 <h3 className="text-xl font-black text-utama leading-tight uppercase group-hover:text-brand transition-colors">{lab.name}</h3>
                 <div className="mt-6 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                   <span>{t?.viewAsset || 'Lihat Aset'}</span>
-                  <svg className="w-4 h-4 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                  <svg className="w-4 h-4 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
                 </div>
               </button>
             ))}
@@ -45,7 +59,9 @@ const LabsTab: React.FC<LabsTabProps> = ({
       ) : (
         <div className="space-y-6">
           <button onClick={() => setSelectedLab(null)} className="flex items-center gap-2 text-gray-400 hover:text-brand font-black text-[10px] uppercase tracking-widest transition-colors bg-gray-50 hover:bg-brand/5 px-4 py-2.5 rounded-full w-fit border border-gray-100">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
             {t?.backToList || 'Kembali ke Daftar'}
           </button>
           
@@ -53,7 +69,6 @@ const LabsTab: React.FC<LabsTabProps> = ({
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
             <div className="relative z-10">
               <h2 className="text-3xl font-black uppercase tracking-tighter leading-none mb-2">
-
                 {typeof selectedLab === 'object' ? (selectedLab?.name || selectedLab?.id) : selectedLab}
               </h2>
               <p className="text-white/50 font-bold text-xs uppercase tracking-[0.3em]">{t?.labInventory || 'Inventaris Aset Laboratorium'}</p>
@@ -63,8 +78,9 @@ const LabsTab: React.FC<LabsTabProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {labAssets.length > 0 ? (
                labAssets.map((asset) => {
-                const isAvailable = asset.status === 'AVAILABLE' || asset.status === 'TERSEDIA';
-                
+                const isAvailable = asset.status === 'AVAILABLE' || asset.status === 'TERSEDIA' || String(asset.status).toLowerCase() === 'tersedia';
+                const realStock = asset.quantity ?? asset.qty ?? asset.QTY ?? asset.jumlah ?? 1;
+
                 return (
                   <div 
                     key={asset.id} 
@@ -86,15 +102,20 @@ const LabsTab: React.FC<LabsTabProps> = ({
                         </span>
                       </div>
 
-                      <h4 className="font-black text-utama uppercase text-base group-hover:text-brand transition-colors leading-tight mb-4 break-words">
-                        {asset.name}
-                      </h4>
+                      <div className="flex items-center gap-2 flex-wrap mb-4">
+                        <h4 className="font-black text-utama uppercase text-base group-hover:text-brand transition-colors leading-tight break-words">
+                          {asset.name || asset.asset_name}
+                        </h4>
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md font-black text-[9px] uppercase tracking-wider shrink-0">
+                          STOK: {realStock} PCS
+                        </span>
+                      </div>
                     </div>
 
                     <div className="pt-4 border-t border-gray-100 flex items-center justify-between gap-4 mt-auto">
                       <div className="text-left shrink-0">
                         <span className="block text-[8px] font-black text-gray-400 uppercase tracking-widest">Kondisi</span>
-                        <span className="text-xs font-black text-utama">GOOD</span>
+                        <span className="text-xs font-black text-utama">{asset.conditionStatus || asset.condition || 'GOOD'}</span>
                       </div>
 
                       <div className="flex-1 flex justify-end min-w-0">

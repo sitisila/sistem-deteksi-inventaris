@@ -9,44 +9,74 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') { exit(0); }
 include 'config.php';
 include 'auth.php';
 
+// Validasi token sesi user logined
 $currentUser = requireAuth($conn);
-requireRole($currentUser, ['Admin', 'Dosen', 'Asisten Laboratorium']);
 
-$data   = json_decode(file_get_contents('php://input'), true);
-$loanId = $data['loanId'] ?? null;
+$data = json_decode(file_get_contents("php://input"));
 
-if (!$loanId) {
+if (empty($data->loanId) || empty($data->assetId) || empty($data->photo)) {
     http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "ID peminjaman tidak ditemukan."]);
+    echo json_encode(["status" => "error", "message" => "Seluruh kolom formulir dan foto bukti wajib diisi woi."]);
     exit;
 }
 
 try {
-    $conn->beginTransaction();
+    // 1. Gabungkan data ke string formal (Menggunakan Baik / Layak, dll)
+    $chosenCondition = !empty($data->condition) ? $data->condition : 'Baik / Layak';
+    $finalNotes = "Kondisi: " . $chosenCondition . " | Catatan: " . $data->notes . " | Foto Bukti: " . $data->photo;
+    
+    // Update status transaksi log peminjaman di tabel loans menjadi DIKEMBALIKAN
+    $stmt = $conn->prepare("UPDATE loans SET status = 'DIKEMBALIKAN', notes = ? WHERE id = ?");
+    $stmt->execute([$finalNotes, (int)$data->loanId]);
 
-    $check = $conn->prepare("SELECT assetId, status FROM loans WHERE id = ? FOR UPDATE");
-    $check->execute([$loanId]);
-    $loan = $check->fetch();
+    // 2. Ambil metadata base64 aset saat ini untuk menambahkan stok kembali (+1) woi
+    $checkAsset = $conn->prepare("SELECT description, deskripsi, status FROM assets WHERE id = ?");
+    $checkAsset->execute([(int)$data->assetId]);
+    $asset = $checkAsset->fetch(PDO::FETCH_ASSOC);
 
-    if (!$loan || $loan['status'] !== 'APPROVED') {
-        $conn->rollBack();
-        http_response_code(409);
-        echo json_encode(["status" => "error", "message" => "Peminjaman ini tidak dalam status aktif."]);
-        exit;
+    if ($asset) {
+        $descriptionStr = $asset['description'] ?? $asset['deskripsi'] ?? '';
+        $currentQty = 0;
+        $metaData = [];
+        $pureDesc = '';
+
+        if (!empty($descriptionStr) && strpos($descriptionStr, '||META:') !== false) {
+            $parts = explode('||', $descriptionStr);
+            foreach ($parts as $part) {
+                if (strpos($part, 'META:') === 0) {
+                    $base64Str = str_replace('META:', '', $part);
+                    $metaData = json_decode(base64_decode($base64Str), true) ?? [];
+                    $currentQty = isset($metaData['qty']) ? (int)$metaData['qty'] : 0;
+                }
+            }
+            $pureDesc = isset($metaData['desc']) ? $metaData['desc'] : '';
+        }
+
+        // Hitung kuantitas stok bertambah balik (+1) karena barang telah kembali
+        $newQty = $currentQty + 1;
+        
+        // Perbarui data kondisi kelayakan di dalam JSON Meta Data agar sinkron saat dibaca
+        $metaData['qty'] = $newQty;
+        $metaData['condition'] = $chosenCondition; 
+
+        $newEncodedDesc = "||META:" . base64_encode(json_encode($metaData)) . "|| " . $pureDesc;
+        $newStatus = ($newQty > 0) ? 'TERSEDIA' : $asset['status'];
+
+        // Update data stok dan deskripsi base64 ke tabel assets
+        $sqlUpdate = "UPDATE assets SET description = :description, deskripsi = :deskripsi, status = :status, QTY = :qty WHERE id = :id";
+        $stmtUpdate = $conn->prepare($sqlUpdate);
+        $stmtUpdate->execute([
+            ':description' => $newEncodedDesc,
+            ':deskripsi'   => $newEncodedDesc,
+            ':status'      => $newStatus,
+            ':qty'         => $newQty, 
+            ':id'          => (int)$data->assetId
+        ]);
     }
 
-    $updateLoan = $conn->prepare("UPDATE loans SET status = 'RETURNED', returnedAt = NOW() WHERE id = ?");
-    $updateLoan->execute([$loanId]);
-
-    $updateAsset = $conn->prepare("UPDATE assets SET status = 'AVAILABLE' WHERE id = ?");
-    $updateAsset->execute([$loan['assetId']]);
-
-    $conn->commit();
-    echo json_encode(["status" => "success", "message" => "Aset berhasil dikembalikan."]);
+    echo json_encode(["status" => "success", "message" => "Barang berhasil dikembalikan woi!"]);
 } catch (PDOException $e) {
-    $conn->rollBack();
-    error_log("return_loan error: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Gagal memproses pengembalian."]);
+    echo json_encode(["status" => "error", "message" => "Gagal mengeksekusi ke database: " . $e->getMessage()]);
 }
 ?>

@@ -12,11 +12,12 @@ interface AdminRoomTabProps {
   onSaveAsset: (data: any) => void; 
   labList: any[]; 
   t: any;
+  authToken?: string | null;
 }
 
 const AdminRoomTab: React.FC<AdminRoomTabProps> = ({ 
   currentUser, searchTerm, setSearchTerm, assets, setAssets, 
-  selectedLab, setSelectedLab, onSaveAsset, labList, t 
+  selectedLab, setSelectedLab, onSaveAsset, labList, t, authToken 
 }) => {
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -51,18 +52,25 @@ const AdminRoomTab: React.FC<AdminRoomTabProps> = ({
     { id: 'Aset Non-Teknis tapi Bernilai', label: t?.catOther || 'Lainnya' }
   ];
 
+  // 🔍 FIX LOGIKA FILTER: Menghapus batasan "Ruang Admin" agar seluruh aset laboratorium muncul woi!
   const filteredData = useMemo(() => {
     return assets?.filter(a => {
-      const isFromAdminRoom = a.lab === 'Ruangan Admin (Aset Kantor)' || a.lab === 'Ruang Admin';
-      if (!isFromAdminRoom) return false;
-
+      // Menyinkronkan pencarian nama berbasis properti asset_name database
+      const nameKey = a.asset_name || a.name || '';
       const matchesSearch = (
-        a.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        a.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+        nameKey.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (a.serialNumber && a.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()))
       );
 
       const currentSelectedLabId = typeof selectedLab === 'object' ? selectedLab?.id : selectedLab;
-      const matchesCategory = !currentSelectedLabId || a.category === currentSelectedLabId;
+      
+      let matchesCategory = true;
+      if (currentSelectedLabId) {
+        const assetCat = String(a.category || '').toLowerCase();
+        const filterCat = String(currentSelectedLabId).toLowerCase();
+        const keyword = filterCat.split(' ')[0]; 
+        matchesCategory = assetCat.includes(keyword) || filterCat.includes(assetCat) || assetCat === filterCat;
+      }
    
       return matchesCategory && matchesSearch;
     }) || [];
@@ -72,7 +80,8 @@ const AdminRoomTab: React.FC<AdminRoomTabProps> = ({
     const sanitizedLab = typeof asset.lab === 'object' ? (asset.lab?.name || asset.lab?.id || 'Ruangan Admin (Aset Kantor)') : (asset.lab || 'Ruangan Admin (Aset Kantor)');
     setSelectedAssetForEdit({
       ...asset,
-      lab: sanitizedLab
+      lab: sanitizedLab,
+      name: asset.asset_name || asset.name
     });
     setIsEditModalOpen(true);
   };
@@ -83,7 +92,7 @@ const AdminRoomTab: React.FC<AdminRoomTabProps> = ({
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <h2 className="text-4xl font-black text-gray-950 uppercase tracking-tight">
-          RUANG ADMIN
+          ASET LABORATORIUM
         </h2>
       </div>
 
@@ -121,41 +130,48 @@ const AdminRoomTab: React.FC<AdminRoomTabProps> = ({
 
       <div className="grid grid-cols-1 gap-4">
         {filteredData.length > 0 ? (
-          filteredData.map((asset) => (
-            <div key={asset.id} className="bg-white border border-gray-100 p-6 rounded-[2rem] flex items-center justify-between hover:shadow-xl hover:border-brand/10 transition-all group">
-              <div className="flex items-center gap-6">
-                <div>
-                   <p className="text-[10px] font-black text-brand uppercase tracking-[0.2em] mb-0.5">
-                     {asset.category}
-                   </p>
-                   <h4 className="font-black text-gray-950 uppercase text-lg group-hover:text-brand transition-colors leading-tight">{asset.name}</h4>
-                   <p className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-wider">
-                     SN: {asset.serialNumber || '-'} | Lokasi: {typeof asset.lab === 'object' ? (asset.lab?.name || 'Objek Lab') : asset.lab}
-                   </p>
+          filteredData.map((asset) => {
+            const isAvailable = String(asset.status).toLowerCase() === 'available' || String(asset.status).toLowerCase() === 'tersedia';
+            
+            return (
+              <div key={asset.id} className="bg-white border border-gray-100 p-6 rounded-[2rem] flex items-center justify-between hover:shadow-xl hover:border-brand/10 transition-all group">
+                <div className="flex items-center gap-6">
+                  <div>
+                     <p className="text-[10px] font-black text-brand uppercase tracking-[0.2em] mb-0.5">
+                       {asset.category || 'Umum'}
+                     </p>
+                     {/* FIX PENAMPILAN NAMA ASET DARI DATABASE */}
+                     <h4 className="font-black text-gray-950 uppercase text-lg group-hover:text-brand transition-colors leading-tight">
+                       {asset.asset_name || asset.name || 'Aset Tanpa Nama'}
+                     </h4>
+                     <p className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-wider">
+                       SN: {asset.serialNumber || '-'} | Lokasi: {typeof asset.lab === 'object' ? (asset.lab?.name || 'Objek Lab') : asset.lab}
+                     </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 shrink-0">
+                  {canEdit && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditModal(asset);
+                      }} 
+                      className="px-5 py-2.5 bg-gray-50 text-gray-800 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-950 hover:text-white transition-all border border-gray-100"
+                    >
+                      Ubah
+                    </button>
+                  )}
+                  <div className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${isAvailable ? 'bg-green-50 text-green-700 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
+                    {isAvailable ? 'Tersedia' : 'Dipinjam'}
+                  </div>
                 </div>
               </div>
-              
-              <div className="flex items-center gap-3 shrink-0">
-                {canEdit && (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openEditModal(asset);
-                    }} 
-                    className="px-5 py-2.5 bg-gray-50 text-gray-800 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-950 hover:text-white transition-all border border-gray-100"
-                  >
-                    Ubah
-                  </button>
-                )}
-                <div className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${asset.status === 'AVAILABLE' || asset.status === 'TERSEDIA' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
-                  {asset.status === 'AVAILABLE' || asset.status === 'TERSEDIA' ? 'Tersedia' : 'Dipinjam'}
-                </div>
-              </div>
-            </div>
-          ))
+            );
+          })
         ) : (
           <div className="py-20 text-center bg-[#FDFDFD] rounded-[2rem] border border-dashed border-gray-200 text-gray-400 font-bold uppercase tracking-widest text-xs">
-            Tidak ada inventaris logistik di Ruang Admin
+            Tidak ada data inventaris logistik ditemukan
           </div>
         )}
       </div>
@@ -168,8 +184,10 @@ const AdminRoomTab: React.FC<AdminRoomTabProps> = ({
             setSelectedAssetForEdit(null);
           }}
           labList={labList}
+          authToken={authToken}
           onSave={(updatedData) => {
-             onSaveAsset({ ...updatedData, id: selectedAssetForEdit.id });
+            const activeAssetId = selectedAssetForEdit.id || selectedAssetForEdit.asset_id || selectedAssetForEdit.assetId;
+            onSaveAsset({ ...updatedData, id: activeAssetId });
             setIsEditModalOpen(false);
             setSelectedAssetForEdit(null);
           }}

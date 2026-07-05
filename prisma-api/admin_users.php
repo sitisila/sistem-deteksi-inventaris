@@ -31,8 +31,9 @@ requireRole($currentUser, ['Admin']);
 
 $method = $_SERVER['REQUEST_METHOD'];
 
+// 1. MENANGANI METHOD GET
 if ($method === 'GET') {
-    $users = []; // 🔍 Inisialisasi awal mencegah peringatan undefined
+    $users = []; 
     try {
         $sql = "SELECT id, name, username, email, phone, role FROM users ORDER BY id DESC";
         $stmt = $conn->prepare($sql);
@@ -59,6 +60,46 @@ if ($method === 'GET') {
     } catch(PDOException $e) {
         http_response_code(500); 
         echo json_encode(["status" => "error", "message" => "Database Error: " . $e->getMessage()]);
+    }
+    exit;
+}
+
+// 2. MENANGANI METHOD POST (Dengan pemetaan payload super fleksibel)
+if ($method === 'POST') {
+    $data = json_decode(file_get_contents("php://input"));
+
+    // Menangkap variasi nama properti ID
+    $targetUserId = $data->userId ?? $data->id ?? $data->user_id ?? null;
+    
+    // 🔍 SOLUSI BARU: Menangkap variasi nama properti role (menampung 'role' atau 'newRole')
+    $targetRole   = $data->role ?? $data->newRole ?? null;
+
+    if (!empty($targetUserId) && !empty($targetRole)) {
+        try {
+            // Update role di tabel users berdasarkan ID yang ditemukan
+            $sql = "UPDATE users SET role = ? WHERE id = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([$targetRole, $targetUserId]);
+
+            echo json_encode([
+                "status" => "success",
+                "message" => "Role berhasil diperbarui!"
+            ]);
+        } catch(PDOException $e) {
+            http_response_code(500);
+            echo json_encode([
+                "status" => "error",
+                "message" => "Gagal memperbarui database: " . $e->getMessage()
+            ]);
+        }
+    } else {
+        http_response_code(400);
+        // Menyertakan data mentah yang diterima agar kita bisa tahu apa isi kiriman dari React
+        echo json_encode([
+            "status" => "error",
+            "message" => "Data tidak lengkap.",
+            "debug_received" => $data
+        ]);
     }
     exit;
 }

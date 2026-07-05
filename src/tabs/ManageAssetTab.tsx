@@ -34,21 +34,60 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({
     { id: 'Aset Non-Teknis tapi Bernilai', label: t?.catOther || 'Lainnya' }
   ];
 
+  // 🎯 ENGINE PARSER: Fungsi pembongkar string ||META:...|| untuk mendapatkan QTY
+  const parseAssetQty = (descriptionStr: string): number => {
+    if (!descriptionStr || !descriptionStr.includes('||META:')) return 0;
+    try {
+      const parts = descriptionStr.split('||');
+      const metaPart = parts.find(p => p.startsWith('META:'));
+      if (metaPart) {
+        const base64Str = metaPart.replace('META:', '');
+        const decodedJson = atob(base64Str); // Decode base64 woi
+        const metaObj = JSON.parse(decodedJson);
+        return parseInt(metaObj.qty || metaObj.quantity || 0);
+      }
+    } catch (e) {
+      console.error("Gagal ekstraksi QTY dari meta-data description", e);
+    }
+    return 0;
+  };
+
   const filteredData = useMemo(() => {
     return assets?.filter(a => {
+      const nameKey = a.asset_name || a.name || '';
       const matchesSearch = (
-        a.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        a.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+        nameKey.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (a.serialNumber && a.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()))
       );
+      
       const currentSelectedLabId = typeof selectedLab === 'object' ? selectedLab?.id : selectedLab;
-      const matchesCategory = !currentSelectedLabId || a.category === currentSelectedLabId;
+      
+      let matchesCategory = true;
+      if (currentSelectedLabId) {
+        const assetCat = String(a.category || '').toLowerCase();
+        const filterCat = String(currentSelectedLabId).toLowerCase();
+        
+        const keyword = filterCat.split(' ')[0]; 
+        matchesCategory = assetCat.includes(keyword) || filterCat.includes(assetCat) || assetCat === filterCat;
+      }
+      
       return matchesCategory && matchesSearch;
     }) || [];
   }, [assets, selectedLab, searchTerm]);
 
   const openEditModal = (asset: any) => {
     const sanitizedLab = typeof asset.lab === 'object' ? (asset.lab?.name || asset.lab?.id || 'Ruangan Admin (Aset Kantor)') : (asset.lab || 'Ruangan Admin (Aset Kantor)');
-    setSelectedAssetForEdit({ ...asset, lab: sanitizedLab });
+    
+    // Bongkar dulu qty aslinya biar di dalam modal edit muncul angka 12/10 woi
+    const extractedQty = parseAssetQty(asset.description || asset.deskripsi || '');
+    
+    setSelectedAssetForEdit({ 
+      ...asset, 
+      lab: sanitizedLab, 
+      name: asset.asset_name || asset.name,
+      QTY: extractedQty,
+      qty: extractedQty
+    });
     setIsEditModalOpen(true);
   };
 
@@ -92,30 +131,48 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({
 
       <div className="grid grid-cols-1 gap-4">
         {filteredData.length > 0 ? (
-          filteredData.map((asset) => (
-            <div key={asset.id} className="bg-white border border-gray-100 p-6 rounded-[2rem] flex items-center justify-between hover:shadow-xl hover:border-brand/10 transition-all group">
-              <div className="flex items-center gap-6">
-                <div>
-                   <p className="text-[10px] font-black text-brand uppercase tracking-[0.2em] mb-0.5">{asset.category}</p>
-                   <h4 className="font-black text-gray-950 uppercase text-lg group-hover:text-brand transition-colors leading-tight">{asset.name}</h4>
-                   <p className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-wider">
-                     SN: {asset.serialNumber || '-'} | Lokasi: {typeof asset.lab === 'object' ? (asset.lab?.name || 'Objek Lab') : asset.lab}
-                   </p>
+          filteredData.map((asset) => {
+            // 🎯 PANGGIL PARSER LIVE: Membongkar nilai kuantitas dari kolom deskripsi database woi!
+            const stockQty = parseAssetQty(asset.description || asset.deskripsi || '');
+            const isAvailable = stockQty > 0 || String(asset.status).toLowerCase() === 'available' || String(asset.status).toLowerCase() === 'tersedia';
+            
+            return (
+              <div key={asset.id} className="bg-white border border-gray-100 p-6 rounded-[2rem] flex items-center justify-between hover:shadow-xl hover:border-brand/10 transition-all group">
+                <div className="flex items-center gap-6">
+                  <div>
+                     <p className="text-[10px] font-black text-brand uppercase tracking-[0.2em] mb-0.5">{asset.category || 'Umum'}</p>
+                     
+                     <div className="flex items-center gap-3">
+                       <h4 className="font-black text-gray-950 uppercase text-lg group-hover:text-brand transition-colors leading-tight">
+                         {asset.asset_name || asset.name || 'Aset Tanpa Nama'}
+                       </h4>
+                       {/* 🎯 BADGE STOK LIVE MENAMPILKAN HASIL EKSTRAKSI */}
+                       <span className="text-[10px] font-black uppercase tracking-wider bg-zinc-100 text-zinc-700 px-2.5 py-1 rounded-md border border-zinc-200">
+                         Stok: {stockQty} Pcs
+                       </span>
+                     </div>
+
+                     <p className="text-[10px] font-bold text-gray-400 mt-1.5 uppercase tracking-wider">
+                       SN: {asset.serialNumber || '-'} | Lokasi: {typeof asset.lab === 'object' ? (asset.lab?.name || 'Objek Lab') : asset.lab}
+                     </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  {canEdit && (
+                    <button onClick={(e) => { e.stopPropagation(); openEditModal(asset); }} 
+                      className="px-5 py-2.5 bg-gray-50 text-gray-800 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-950 hover:text-white transition-all border border-gray-100">
+                      Ubah
+                    </button>
+                  )}
+                  <div className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
+                    stockQty > 0 ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-600 border-red-100'
+                  }`}>
+                    {stockQty > 0 ? 'Tersedia' : 'Habis'}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
-                {canEdit && (
-                  <button onClick={(e) => { e.stopPropagation(); openEditModal(asset); }} 
-                    className="px-5 py-2.5 bg-gray-50 text-gray-800 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-950 hover:text-white transition-all border border-gray-100">
-                    Ubah
-                  </button>
-                )}
-                <div className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${asset.status === 'AVAILABLE' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
-                  {asset.status === 'AVAILABLE' ? 'Tersedia' : 'Dipinjam'}
-                </div>
-              </div>
-            </div>
-          ))
+            );
+          })
         ) : (
           <div className="py-20 text-center bg-[#FDFDFD] rounded-[2rem] border border-dashed border-gray-200 text-gray-400 font-bold uppercase tracking-widest text-xs">
             Tidak ada data aset laboratorium ditemukan
@@ -134,9 +191,8 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({
             setIsEditModalOpen(false);
             setSelectedAssetForEdit(null);
           }}
-          onDeleted={() => { setIsEditModalOpen(false); setSelectedAssetForEdit(null); }}
-          initialData={selectedAssetForEdit} 
           t={t}
+          initialData={selectedAssetForEdit} 
         />
       )}
     </div>

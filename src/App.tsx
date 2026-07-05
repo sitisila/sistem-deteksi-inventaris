@@ -253,7 +253,7 @@ const App: React.FC = () => {
       if (result.status === 'success') {
         Swal.fire({
           title: lang === 'id' ? 'Berhasil!' : 'Success!',
-          text: lang === 'id' ? 'Permintaan peminjaman berhasil terkirim woi!' : 'Loan request sent successfully!',
+          text: lang === 'id' ? 'Permintaan peminjaman berhasil terkirim ' : 'Loan request sent successfully!',
           icon: 'success',
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }
@@ -274,7 +274,7 @@ const App: React.FC = () => {
       console.error("Crash Fetch request_loan:", error);
       Swal.fire({
         title: 'Error Peminjaman!',
-        text: lang === 'id' ? 'Koneksi ke server API backend bermasalah woi!' : 'Connection error during loan request.',
+        text: lang === 'id' ? 'Koneksi ke server API backend bermasalah' : 'Connection error during loan request.',
         icon: 'error',
         confirmButtonColor: '#5c1313',
         customClass: { popup: 'rounded-[2rem]' }
@@ -379,7 +379,7 @@ const App: React.FC = () => {
       if (result.status === 'success') {
         Swal.fire({
           title: lang === 'id' ? 'Berhasil!' : 'Success!',
-          text: lang === 'id' ? 'Pengajuan pengembalian berhasil ditolak woi.' : 'Return request successfully rejected.',
+          text: lang === 'id' ? 'Pengajuan pengembalian berhasil ditolak' : 'Return request successfully rejected.',
           icon: 'info',
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }

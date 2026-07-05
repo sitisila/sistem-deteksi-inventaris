@@ -68,7 +68,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
     if (!formData.assetId || !formData.borrowTime || !formData.returnTime || !formData.phoneNumber || !formData.reason) {
       Swal.fire({
         title: 'Gagal!',
-        text: 'Silakan isi seluruh kolom formulir termasuk Jam Mulai & Jam Selesai secara lengkap woi!',
+        text: 'Silakan isi seluruh kolom formulir termasuk Jam Mulai & Jam Selesai secara lengkap ',
         icon: 'warning',
         confirmButtonColor: '#5c1313',
         customClass: { popup: 'rounded-[2rem]' }
@@ -80,7 +80,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
     if (formData.returnTime <= formData.borrowTime) {
       Swal.fire({
         title: 'Waktu Tidak Valid!',
-        text: 'Jam Selesai tidak boleh sama atau mendahului Jam Mulai peminjaman woi!',
+        text: 'Jam Selesai tidak boleh sama atau mendahului Jam Mulai peminjaman ',
         icon: 'error',
         confirmButtonColor: '#5c1313',
         customClass: { popup: 'rounded-[2rem]' }
@@ -94,7 +94,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
     if (currentQty <= 0) {
       Swal.fire({
         title: 'Stok Habis!',
-        text: 'Maaf woi, kuantitas aset logistik laboratorium ini sedang kosong!',
+        text: 'Maaf, kuantitas aset logistik laboratorium ini sedang kosong!',
         icon: 'error',
         confirmButtonColor: '#5c1313',
         customClass: { popup: 'rounded-[2rem]' }
@@ -127,7 +127,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
         
         Swal.fire({
           title: 'Berhasil!',
-          text: 'Permintaan peminjaman alat berhasil diajukan ke asisten lab woi!',
+          text: 'Permintaan peminjaman alat berhasil diajukan ke asisten lab',
           icon: 'success',
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }

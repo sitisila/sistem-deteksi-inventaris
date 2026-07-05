@@ -76,7 +76,7 @@ const DashboardMain: React.FC<DashboardProps> = ({
       });
       const result = await res.json();
       if (result.status === 'success') {
-        Swal.fire({ title: 'Berhasil!', text: 'Peminjaman disetujui woi!', icon: 'success', confirmButtonColor: '#5c1313', customClass: { popup: 'rounded-[2rem]' } });
+        Swal.fire({ title: 'Berhasil!', text: 'Peminjaman disetujui ', icon: 'success', confirmButtonColor: '#5c1313', customClass: { popup: 'rounded-[2rem]' } });
       } else {
         Swal.fire({ title: 'Gagal!', text: result.message, icon: 'error', confirmButtonColor: '#5c1313', customClass: { popup: 'rounded-[2rem]' } });
       }

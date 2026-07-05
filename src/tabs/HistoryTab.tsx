@@ -61,7 +61,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ t, loans, currentUser }) => {
       if (result.status === 'success') {
         Swal.fire({
           title: 'Berhasil!',
-          text: result.message || 'Barang berhasil dikembalikan woi!',
+          text: result.message || 'Barang berhasil dikembalikan',
           icon: 'success',
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }
@@ -150,7 +150,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ t, loans, currentUser }) => {
             ) : (
               <tr>
                 <td colSpan={4} className="py-20 text-center text-gray-400 font-bold uppercase text-xs tracking-widest">
-                  Tidak ada data riwayat peminjaman woi.
+                  Tidak ada data riwayat peminjaman.
                 </td>
               </tr>
             )}

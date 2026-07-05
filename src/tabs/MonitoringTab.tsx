@@ -78,7 +78,7 @@ const MonitoringTab: React.FC<MonitoringTabProps> = ({ t, loans, onReturnAsset, 
           })
         ) : (
           <div className="py-20 text-center bg-[#FDFDFD] rounded-[2rem] border border-dashed border-gray-200 text-gray-400 font-bold uppercase tracking-widest text-xs">
-            Tidak ada peminjaman yang perlu dipantau saat ini woi.
+            Tidak ada peminjaman yang perlu dipantau saat ini .
           </div>
         )}
       </div>

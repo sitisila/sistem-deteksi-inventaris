@@ -13,15 +13,16 @@ interface ApprovalTabProps {
 const ApprovalTab: React.FC<ApprovalTabProps> = ({ t, loans, onApprove, onReject, processingLoanId }) => {
   
   const handleDeleteLoan = async (loanId: string, assetName: string) => {
+    // 🎯 TRANSLATED: SweetAlert konfirmasi hapus data
     const result = await Swal.fire({
-      title: 'Apakah Anda yakin?',
-      text: `Data riwayat peminjaman untuk aset "${assetName}" akan dihapus permanen!`,
+      title: t?.lang === 'en' ? 'Are you sure?' : 'Apakah Anda yakin?',
+      text: t?.lang === 'en' ? `Loan history data for asset "${assetName}" will be permanently deleted!` : `Data riwayat peminjaman untuk aset "${assetName}" akan dihapus permanen!`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#5c1313',
       cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Ya, Hapus!',
-      cancelButtonText: 'Batal',
+      confirmButtonText: t?.lang === 'en' ? 'Yes, Delete!' : 'Ya, Hapus!',
+      cancelButtonText: t?.cancel || 'Batal',
       customClass: { popup: 'rounded-[2rem]' }
     });
 
@@ -41,8 +42,8 @@ const ApprovalTab: React.FC<ApprovalTabProps> = ({ t, loans, onApprove, onReject
         const data = await res.json();
         if (data.status === 'success') {
           Swal.fire({
-            title: 'Terhapus!',
-            text: 'Riwayat peminjaman berhasil dihapus.',
+            title: t?.lang === 'en' ? 'Deleted!' : 'Terhapus!',
+            text: t?.lang === 'en' ? 'Loan history successfully deleted.' : 'Riwayat peminjaman berhasil dihapus.',
             icon: 'success',
             confirmButtonColor: '#5c1313',
             customClass: { popup: 'rounded-[2rem]' }
@@ -61,24 +62,26 @@ const ApprovalTab: React.FC<ApprovalTabProps> = ({ t, loans, onApprove, onReject
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* 🎯 TRANSLATED: Header Title & Subtitle */}
       <div className="flex flex-col gap-1 px-2">
         <h3 className="text-3xl font-black text-utama tracking-tighter uppercase leading-none">
-          PERSETUJUAN PEMINJAMAN
+          {t?.approvalTitle || 'PERSETUJUAN PEMINJAMAN'}
         </h3>
         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-          KONFIRMASI PERMINTAAN PENGGUNAAN ASET
+          {t?.approvalDesc || 'KONFIRMASI PERMINTAAN PENGGUNAAN ASET'}
         </p>
       </div>
 
       <div className="overflow-hidden bg-white rounded-[2.5rem] border border-gray-100 shadow-sm mx-2">
         <table className="w-full text-left border-collapse">
           <thead>
+            {/* 🎯 TRANSLATED: Table Headers */}
             <tr className="bg-utama text-white">
-              <th className="p-6 text-[10px] font-black uppercase tracking-widest">PEMOHON</th>
-              <th className="p-6 text-[10px] font-black uppercase tracking-widest">ASET & QTY</th>
-              <th className="p-6 text-[10px] font-black uppercase tracking-widest">WAKTU PINJAM</th>
-              <th className="p-6 text-[10px] font-black uppercase tracking-widest text-center">STATUS</th>
-              <th className="p-6 text-[10px] font-black uppercase tracking-widest text-center">AKSI</th>
+              <th className="p-6 text-[10px] font-black uppercase tracking-widest">{t?.thApplicant || 'PEMOHON'}</th>
+              <th className="p-6 text-[10px] font-black uppercase tracking-widest">{t?.thAssetQty || 'ASET & QTY'}</th>
+              <th className="p-6 text-[10px] font-black uppercase tracking-widest">{t?.thBorrowTime || 'WAKTU PINJAM'}</th>
+              <th className="p-6 text-[10px] font-black uppercase tracking-widest text-center">{t?.statusTable || 'STATUS'}</th>
+              <th className="p-6 text-[10px] font-black uppercase tracking-widest text-center">{t?.action || 'AKSI'}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -88,6 +91,11 @@ const ApprovalTab: React.FC<ApprovalTabProps> = ({ t, loans, onApprove, onReject
                 const namaAset = loan.assetName || loan.asset_name || 'Aset';
                 const statusText = String(loan.status || '').toUpperCase();
 
+                // Normalisasi text status untuk rendering label internasional
+                const isApproved = statusText === 'DISETUJUI' || statusText === 'APPROVED';
+                const isRejected = statusText === 'DITOLAK' || statusText === 'REJECTED';
+                const isPending = statusText === 'PENDING' || statusText === 'PROSES' || statusText === 'MENUNGGU';
+
                 return (
                   <tr key={idLoan} className="hover:bg-zinc-50/50 transition-colors">
                     <td className="p-6">
@@ -96,25 +104,27 @@ const ApprovalTab: React.FC<ApprovalTabProps> = ({ t, loans, onApprove, onReject
                     </td>
                     <td className="p-6">
                       <p className="font-black text-brand text-xs uppercase">{namaAset}</p>
-                      <p className="text-[10px] text-gray-500 font-bold uppercase">JUMLAH: {loan.quantity || loan.qty || 1}</p>
+                      {/* 🎯 TRANSLATED: Label Jumlah Item */}
+                      <p className="text-[10px] text-gray-500 font-bold uppercase">{t?.qtyLabel || 'JUMLAH'}: {loan.quantity || loan.qty || 1}</p>
                     </td>
                     <td className="p-6">
                       <p className="text-xs font-bold text-gray-600">{loan.loan_date || '2026-07-05'}</p>
                       <p className="text-[10px] text-brand font-black">{loan.borrowTime?.substring(0, 5) || '00:00'} WIB</p>
                     </td>
                     <td className="p-6 text-center">
+                      {/* 🎯 TRANSLATED: Status Badge Row */}
                       <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase border ${
-                        statusText === 'DISETUJUI' || statusText === 'APPROVED'
-                          ? 'bg-green-50 text-green-600 border-green-100'
-                          : statusText === 'DITOLAK' || statusText === 'REJECTED'
-                          ? 'bg-red-50 text-red-600 border-red-100'
-                          : 'bg-yellow-50 text-yellow-600 border-yellow-100'
+                        isApproved ? 'bg-green-50 text-green-600 border-green-100' : 
+                        isRejected ? 'bg-red-50 text-red-600 border-red-100' : 
+                        'bg-yellow-50 text-yellow-600 border-yellow-100'
                       }`}>
-                        {statusText === 'APPROVED' ? 'DISETUJUI' : statusText === 'REJECTED' ? 'DITOLAK' : statusText}
+                        {isApproved ? (t?.statusApproved || 'DISETUJUI') : 
+                         isRejected ? (t?.statusRejected || 'DITOLAK') : 
+                         (t?.statusPending || 'MENUNGGU')}
                       </span>
                     </td>
                     <td className="p-6 text-center">
-                      {statusText === 'PENDING' ? (
+                      {isPending ? (
                         <div className="flex justify-center gap-2">
                           <button 
                             type="button"
@@ -149,9 +159,10 @@ const ApprovalTab: React.FC<ApprovalTabProps> = ({ t, loans, onApprove, onReject
                 );
               })
             ) : (
+              /* 🎯 TRANSLATED: Teks Baris Kosong */
               <tr>
                 <td colSpan={5} className="py-20 text-center text-gray-400 font-bold uppercase text-xs tracking-widest">
-                  Tidak ada data persetujuan saat ini woi.
+                  {t?.lang === 'en' ? 'No approval data available at the moment.' : 'Tidak ada data persetujuan saat ini woi.'}
                 </td>
               </tr>
             )}

@@ -18,12 +18,13 @@ if (
     !empty($data->phoneNumber) &&
     !empty($data->nim)
 ) {
-    $fullName    = trim($data->fullName);
-    $username    = trim($data->username);
-    $email       = trim($data->email);
+    // Mapping data dari frontend ke format kolom database ril lu woi
+    $name        = trim($data->fullName);     // Masuk ke kolom 'name'
+    $username    = trim($data->username);     // Masuk ke kolom 'username'
+    $email       = trim(strtolower($data->email)); 
     $password    = $data->password;
-    $phoneNumber = trim($data->phoneNumber);
-    $nim         = trim($data->nim);
+    $phone       = trim($data->phoneNumber);  // Masuk ke kolom 'phone'
+    $nim         = trim($data->nim);          // Masuk ke kolom 'nim' yang baru ditambah
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         http_response_code(400);
@@ -39,9 +40,9 @@ if (
 
     $role = "";
     if (str_ends_with($email, '@student.telkomuniversity.ac.id')) {
-        $role = 'Mahasiswa';
+        $role = 'mahasiswa';
     } elseif (str_ends_with($email, '@employee.telkomuniversity.ac.id')) {
-        $role = 'Dosen';
+        $role = 'dosen';
     } else {
         http_response_code(400);
         echo json_encode(["status" => "error", "message" => "Gunakan email resmi Telkom University."]);
@@ -59,18 +60,19 @@ if (
 
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        $sql = "INSERT INTO users (fullName, username, email, password, phoneNumber, nim, role) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        // 🎯 QUERY FIX: Sesuai nama kolom asli di gambar database phpMyAdmin lu woi!
+        $sql = "INSERT INTO users (name, username, email, password, phone, nim, role) VALUES (?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
-        $stmt->execute([$fullName, $username, $email, $hashedPassword, $phoneNumber, $nim, $role]);
+        $stmt->execute([$name, $username, $email, $hashedPassword, $phone, $nim, $role]);
 
-        echo json_encode(["status" => "success"]);
+        echo json_encode(["status" => "success", "message" => "Registrasi berhasil sebagai " . $role]);
     } catch (PDOException $e) {
         error_log("Register error: " . $e->getMessage());
         http_response_code(500);
-        echo json_encode(["status" => "error", "message" => "Registrasi gagal karena kendala server."]);
+        echo json_encode(["status" => "error", "message" => "Registrasi gagal: " . $e->getMessage()]);
     }
 } else {
     http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "Data tidak lengkap."]);
+    echo json_encode(["status" => "error", "message" => "Data tidak lengkap woi."]);
 }
 ?>

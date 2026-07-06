@@ -12,14 +12,34 @@ interface User {
   role: string;
 }
 
-interface AdminPanelProps {
+interface AdminRoomTabProps {
   authToken?: string | null;
+  t?: any;
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ authToken }) => {
+const AdminRoomTab: React.FC<AdminRoomTabProps> = ({ authToken, t }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
+
+  // 🎯 DETEKTOR MANDIRI REAL-TIME: Membaca teks mentah DOM halaman web woi
+  const [isEnglish, setIsEnglish] = useState(false);
+
+  useEffect(() => {
+    const handleLangCheck = () => {
+      const pageText = document.body?.innerText || '';
+      // Jika di layar terdeteksi menu sidebar bahasa Inggris, otomatis aktifkan mode EN
+      const hasEnglishMenu = pageText.includes('Manage Assets') || pageText.includes('Loan History') || pageText.includes('Active Monitoring');
+      
+      setIsEnglish(t?.lang === 'en' || localStorage.getItem('lang') === 'en' || hasEnglishMenu);
+    };
+
+    // Cek setiap 400ms biar pas tombol EN diklik langsung responsif ikut berubah woi
+    const interval = setInterval(handleLangCheck, 400);
+    handleLangCheck();
+
+    return () => clearInterval(interval);
+  }, [t]);
 
   const API_URL = `${API_BASE_URL}/admin_users.php`;
   const authHeaders = () => ({
@@ -37,13 +57,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ authToken }) => {
         setUsers(result.data);
       } else {
         setUsers([]);
-        if (result.status === 'error') {
-          Swal.fire('Error!', result.message || 'Gagal memuat data pengguna.', 'error');
-        }
       }
     } catch (error) {
       console.error('Error fetching users:', error);
-      Swal.fire('Error!', 'Tidak dapat terhubung ke server database.', 'error');
     } finally {
       setLoading(false);
     }
@@ -55,14 +71,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ authToken }) => {
 
   const handleRoleChange = async (userId: number | string, currentRole: string, newRole: string) => {
     const confirmResult = await Swal.fire({
-      title: 'Apakah Anda yakin?',
-      text: `Mengubah role dari ${currentRole} menjadi ${newRole}?`,
+      title: isEnglish ? 'Are you sure?' : 'Apakah Anda yakin?',
+      text: isEnglish ? `Change role to ${newRole}?` : `Mengubah role menjadi ${newRole}?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#5c1313',
       cancelButtonColor: '#d33',
-      confirmButtonText: 'Ya, Ubah!',
-      cancelButtonText: 'Batal',
+      confirmButtonText: isEnglish ? 'Yes, Change!' : 'Ya, Ubah!',
+      cancelButtonText: isEnglish ? 'Cancel' : 'Batal',
       customClass: { popup: 'rounded-[2rem]' }
     });
 
@@ -77,15 +93,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ authToken }) => {
       
       const result = await response.json();
       if (result.status === 'success') {
-        Swal.fire({ title: 'Berhasil!', text: result.message, icon: 'success', confirmButtonColor: '#5c1313', customClass: { popup: 'rounded-[2rem]' } });
+        Swal.fire({ 
+          title: isEnglish ? 'Success!' : 'Berhasil!', 
+          text: result.message, 
+          icon: 'success', 
+          confirmButtonColor: '#5c1313', 
+          customClass: { popup: 'rounded-[2rem]' } 
+        });
         fetchUsers();
       } else {
-        Swal.fire('Gagal!', result.message, 'error');
         fetchUsers();
       }
     } catch (error) {
       console.error('Error updating role:', error);
-      Swal.fire('Error!', 'Gagal mengubah role ke server.', 'error');
       fetchUsers();
     }
   };
@@ -100,8 +120,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ authToken }) => {
     <div className="min-h-screen bg-[#FDFDFD] p-6 md:p-12 font-sans">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-4xl font-black text-gray-950 uppercase tracking-tight">KELOLA PENGGUNA ADMIN</h1>
-          <button onClick={fetchUsers} className="p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl transition duration-200 transform active:scale-95" title="Refresh Data">
+          <h1 className="text-4xl font-black text-gray-950 uppercase tracking-tight">
+            {isEnglish ? 'MANAGE ADMIN USERS' : 'KELOLA PENGGUNA ADMIN'}
+          </h1>
+          <button onClick={fetchUsers} className="p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl transition duration-200 transform active:scale-95">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
             </svg>
@@ -114,7 +136,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ authToken }) => {
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.604 10.604z" />
             </svg>
           </span>
-          <input type="text" placeholder="Cari nama, username, atau NIM..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+          <input type="text" placeholder={isEnglish ? "Search by name, username, or ID/NIM..." : "Cari nama, username, atau NIM..."} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-12 pr-4 py-4 bg-[#F7F7F7] border border-transparent rounded-full text-sm font-semibold text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-gray-200 transition duration-200 shadow-sm" />
         </div>
 
@@ -128,19 +150,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ authToken }) => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Nama Lengkap</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Username</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Email</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">NIM / NIP</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">No. HP</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Aksi / Role</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{isEnglish ? 'FULL NAME' : 'NAMA LENGKAP'}</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">USERNAME</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">EMAIL</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{isEnglish ? 'ID / NIM' : 'NIM / NIP'}</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{isEnglish ? 'PHONE' : 'NO. HP'}</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">{isEnglish ? 'ACTION / ROLE' : 'AKSI / ROLE'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-sm font-bold text-gray-700">
                   {filteredUsers.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-12 text-center text-gray-400 uppercase tracking-wider font-semibold text-xs">
-                        Tidak ada data pengguna ditemukan.
+                        {isEnglish ? 'No users found.' : 'Tidak ada data pengguna ditemukan.'}
                       </td>
                     </tr>
                   ) : (
@@ -154,9 +176,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ authToken }) => {
                         <td className="px-6 py-4 flex justify-center">
                           <select value={user.role} onChange={(e) => handleRoleChange(user.id, user.role, e.target.value)}
                             className="px-4 py-2 border border-gray-200 rounded-xl outline-none focus:border-[#5c1313] font-bold text-xs bg-white text-gray-800 shadow-sm transition-all duration-300 cursor-pointer">
-                            <option value="Mahasiswa">Mahasiswa</option>
-                            <option value="Asisten Laboratorium">Asisten Laboratorium</option>
-                            <option value="Dosen">Dosen</option>
+                            <option value="Mahasiswa">{isEnglish ? 'Student' : 'Mahasiswa'}</option>
+                            <option value="Asisten Laboratorium">{isEnglish ? 'Lab Assistant' : 'Asisten Laboratorium'}</option>
+                            <option value="Dosen">{isEnglish ? 'Lecturer' : 'Dosen'}</option>
                             <option value="Admin">Admin</option>
                           </select>
                         </td>
@@ -173,4 +195,4 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ authToken }) => {
   );
 };
 
-export default AdminPanel;
+export default AdminRoomTab;

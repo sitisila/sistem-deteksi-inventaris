@@ -31,10 +31,10 @@ export const TRANSLATIONS: Record<string, any> = {
     scanBtn: "Pindai QR",
     scanTitle: "Pindai Kode QR Aset",
     scanDesc: "Arahkan kamera ke kode QR yang tertempel di alat",
-    searchPlaceholder: "Cari alat...",
-    borrowBtn: "Pinjam Alat",
-    available: "Tersedia",
-    borrowed: "Dipinjam",
+    searchPlaceholder: "Cari seluruh aset berdasarkan nama atau kode...", // Updated translation
+    borrowBtn: "PINJAM ALAT",
+    available: "TERSEDIA",
+    borrowed: "DIPINJAM",
     maintenance: "Maintenance",
     history: "Riwayat",
     historyTitle: "RIWAYAT PEMINJAMAN", 
@@ -55,7 +55,7 @@ export const TRANSLATIONS: Record<string, any> = {
     approve: "Setujui",
     reject: "Tolak",
     printLabel: "Cetak Label QR",
-    formTitle: "Form Peminjaman Alat",
+    formTitle: "Form Paimanjaman Alat",
     deadlineWarning: "Peringatan: Alat wajib dikembalikan ke Laboran sebelum jam 18:00 WIB di hari yang sama.",
     studentNim: "NIM",
     class: "Kelas",
@@ -85,12 +85,12 @@ export const TRANSLATIONS: Record<string, any> = {
     noRecentData: "Belum ada data",
     statusLabel: "Status",
     labListTitle: "Daftar Laboratorium",
-    labListDesc: "Pilih laboratorium untuk melihat detail aset yang tersedia",
-    roomLabel: "Ruangan",
+    labListDesc: "Silahkan pilih laboratorium untuk melihat aset", // Match with list implementation
+    roomLabel: "Ruang",
     viewAsset: "Lihat Aset",
     backToList: "Kembali ke Daftar",
     labInventory: "Inventaris Aset Laboratorium",
-    noAssetInLab: "Belum ada aset terdaftar di lab ini",
+    noAssetInLab: "TIDAK ADA ASET DI KLASIFIKASI INI", // Match with filter response
     adminInventoryTitle: "Inventaris Aset Admin",
     manageAssetTitle: "Kelola Data Aset",
     searchAssetPlaceholder: "Cari nama atau kode aset...",
@@ -167,8 +167,9 @@ export const TRANSLATIONS: Record<string, any> = {
     loanActionLabel: "mengajukan alat",
     timeAgo: "Baru saja",
     noRecentDataDesc: "Mulai eksplorasi daftar laboratorium untuk melihat log atau mengajukan surat izin peminjaman alat.",
-    estimatedLabel: 'EST. KEMBALI'
-
+    estimatedLabel: 'EST. KEMBALI',
+    stockLabel: 'STOK', // 🎯 Tambahan Baru buat List Lab woi
+    monitorOnly: 'Hanya Pantau' // 🎯 Tambahan Baru buat List Lab woi
   },
 
   en: {
@@ -194,10 +195,10 @@ export const TRANSLATIONS: Record<string, any> = {
     scanBtn: "Scan QR",
     scanTitle: "Scan Asset QR Code",
     scanDesc: "Point camera at the QR code attached to the equipment",
-    searchPlaceholder: "Search equipment...",
-    borrowBtn: "Borrow Equipment",
-    available: "Available",
-    borrowed: "Borrowed",
+    searchPlaceholder: "Search all assets by name or code...", // Fully English
+    borrowBtn: "BORROW ASSET", // Fully English
+    available: "AVAILABLE", // Fully English
+    borrowed: "BORROWED", // Fully English
     maintenance: "Maintenance",
     history: "History",
     historyTitle: "LOAN HISTORY", 
@@ -248,12 +249,12 @@ export const TRANSLATIONS: Record<string, any> = {
     noRecentData: "No data available",
     statusLabel: "Status",
     labListTitle: "Laboratory List",
-    labListDesc: "Select a laboratory to view available asset details",
+    labListDesc: "Please select a laboratory to view its assets", // Fully English
     roomLabel: "Room",
     viewAsset: "View Assets",
     backToList: "Back to List",
     labInventory: "Laboratory Asset Inventory",
-    noAssetInLab: "No assets registered in this lab yet",
+    noAssetInLab: "NO ASSETS FOUND IN THIS CLASSIFICATION", // Fully English
     adminInventoryTitle: "Admin Asset Inventory",
     manageAssetTitle: "Manage Asset Data",
     searchAssetPlaceholder: "Search asset name or code...",
@@ -330,7 +331,9 @@ export const TRANSLATIONS: Record<string, any> = {
     loanActionLabel: "requested an asset",
     timeAgo: "Just now",
     noRecentDataDesc: "Start exploring the laboratory list to view logs or submit equipment loan applications.",
-    estimatedLabel: 'EST. RETURN'
+    estimatedLabel: 'EST. RETURN',
+    stockLabel: 'STOCK', // 🎯 Tambahan Baru buat List Lab woi
+    monitorOnly: 'MONITOR ONLY' // 🎯 Tambahan Baru buat List Lab woi
   }
 };
 

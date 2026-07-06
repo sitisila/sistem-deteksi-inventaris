@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Jul 05, 2026 at 09:55 AM
+-- Generation Time: Jul 06, 2026 at 01:06 PM
 -- Server version: 8.0.30
 -- PHP Version: 8.3.10
 
@@ -52,7 +52,7 @@ CREATE TABLE `assets` (
 INSERT INTO `assets` (`id`, `serialNumber`, `asset_code`, `asset_name`, `category`, `location`, `lab`, `status`, `description`, `created_at`, `sumber_pendanaan`, `no_invoice`, `status_kelayakan`, `deskripsi`, `QTY`) VALUES
 (5, '1234567654323', '1234567654323', 'kaset', 'DGFHGGGFD322', 'bawag', 'Cellular Communication (CellComm) Laboratory', 'Tersedia', '||META:eyJicmFuZCI6IjIyNiIsInllYXIiOiI0NDQ0IiwiYWNjIjoic2Zhc3cyIiwicXR5Ijo4LCJkZXNjIjoic2ZhZ2FnZSJ9|| sfagage', '2026-07-04 17:31:41', '2SDS33', '34R4222224', 'Rusak Berat', '||META:eyJicmFuZCI6IjIyNiIsInllYXIiOiI0NDQ0IiwiYWNjIjoic2Zhc3cyIiwicXR5Ijo4LCJkZXNjIjoic2ZhZ2FnZSJ9|| sfagage', 8),
 (11, '133575343', '133575343', 'kaset1', 'DGFHGGGFD', 'Rak besi atas', 'Telecommunication Networking (TelNet) Laboratory', 'TERSEDIA', '||META:eyJicmFuZCI6IjIyNiIsInllYXIiOiIzMTIyIiwiYWNjIjoidHR0dCIsInF0eSI6MTMsImRlc2MiOiI4c2RmZ2giLCJjb25kaXRpb24iOiJCYWlrIFwvIExheWFrIn0=|| 8sdfgh', '2026-07-04 17:57:08', '2SDS2', '34R4222224', 'Rusak Ringan', '||META:eyJicmFuZCI6IjIyNiIsInllYXIiOiIzMTIyIiwiYWNjIjoidHR0dCIsInF0eSI6MTMsImRlc2MiOiI4c2RmZ2giLCJjb25kaXRpb24iOiJCYWlrIFwvIExheWFrIn0=|| 8sdfgh', 13),
-(16, '2221111', '2221111', 'dafa', 'DGFHGGGFDa', 'sate', 'Mechanical and Electrical Workshop Laboratory', 'TERSEDIA', '||META:eyJicmFuZCI6IjIyMTJzIiwieWVhciI6IjIwMjIiLCJhY2MiOiJhIiwicXR5Ijo5LCJkZXNjIjoicyIsImNvbmRpdGlvbiI6IkJhaWsgXC8gTGF5YWsifQ==|| s', '2026-07-05 02:26:41', 'vasere', '34R41c', 'Rusak Berat', '||META:eyJicmFuZCI6IjIyMTJzIiwieWVhciI6IjIwMjIiLCJhY2MiOiJhIiwicXR5Ijo5LCJkZXNjIjoicyIsImNvbmRpdGlvbiI6IkJhaWsgXC8gTGF5YWsifQ==|| s', 9),
+(16, '2221111', '2221111', 'dafa', 'DGFHGGGFDa', 'sate', 'Mechanical and Electrical Workshop Laboratory', 'TERSEDIA', '||META:eyJicmFuZCI6IjIyMTJzIiwieWVhciI6IjIwMjIiLCJhY2MiOiJhIiwicXR5Ijo4LCJkZXNjIjoicyIsImNvbmRpdGlvbiI6IkJhaWsgXC8gTGF5YWsifQ==|| s', '2026-07-05 02:26:41', 'vasere', '34R41c', 'Rusak Berat', '||META:eyJicmFuZCI6IjIyMTJzIiwieWVhciI6IjIwMjIiLCJhY2MiOiJhIiwicXR5Ijo4LCJkZXNjIjoicyIsImNvbmRpdGlvbiI6IkJhaWsgXC8gTGF5YWsifQ==|| s', 8),
 (17, '3122', '3122', 'sss', 'DGFHGGGFD322', 'bawag', 'Optical Communication System (OCS) Laboratory', 'Tersedia', '||META:eyJicmFuZCI6IjExcyIsInllYXIiOiIyMDIyIiwiYWNjIjoiZmYiLCJxdHkiOjEsImRlc2MiOiJ4eCJ9|| xx', '2026-07-05 03:23:15', '2SDS33', '34R42222222s', 'Baik', '||META:eyJicmFuZCI6IjExcyIsInllYXIiOiIyMDIyIiwiYWNjIjoiZmYiLCJxdHkiOjEsImRlc2MiOiJ4eCJ9|| xx', 1),
 (19, '222111112', '222111112', 'siuuu', 'ASET NON-TEKNIS TAPI BERNILAI', 'Rak besi atas', 'Ruangan Admin', 'Tersedia', '||META:eyJicmFuZCI6InN4MyIsInllYXIiOiI0NDQ0MiIsImFjYyI6Ii0iLCJxdHkiOjYsImRlc2MiOiItIn0=|| -', '2026-07-05 07:16:31', '1223', '34R41', 'Baik', '||META:eyJicmFuZCI6InN4MyIsInllYXIiOiI0NDQ0MiIsImFjYyI6Ii0iLCJxdHkiOjYsImRlc2MiOiItIn0=|| -', 6),
 (20, '2233', '2233', 'apa', 'PERALATAN LABORATORIUM & PENGUKURAN', 'Rak besi atas', 'Wireless Communication (WiComm) Laboratory', 'Tersedia', '||META:eyJicmFuZCI6Ing1IiwieWVhciI6IjIxMjIiLCJhY2MiOiItIiwicXR5Ijo3LCJkZXNjIjoiLSJ9|| -', '2026-07-05 09:27:56', '2SDS334', '34R41', 'Baik', '||META:eyJicmFuZCI6Ing1IiwieWVhciI6IjIxMjIiLCJhY2MiOiItIiwicXR5Ijo3LCJkZXNjIjoiLSJ9|| -', 7);
@@ -91,7 +91,8 @@ INSERT INTO `loans` (`id`, `user_id`, `userName`, `userEmail`, `asset_id`, `asse
 (1, 4, 'User Biasa', 'user@telkomuniversity.ac.id', 11, 'kaset1', '2026-07-05', '2026-07-07', '-', '04:28:07', NULL, 1, 'DIKEMBALIKAN', 'Baik / Layak', NULL, NULL, 'Kondisi: Baik / Layak | Catatan: - | Foto Bukti: 26-266835_blank-speech-bubble-blank-pixel-speech-bubble-png.png'),
 (3, 4, 'User Biasa', 'user@telkomuniversity.ac.id', 16, 'dafa', '2026-07-05', '2026-07-05', 'mau ', '12:00:00', '16:58:00', 1, 'DIKEMBALIKAN', 'Baik / Layak', NULL, NULL, 'Kondisi: Baik / Layak | Catatan: OKE | Foto Bukti: 257.jpg'),
 (5, 4, 'User Biasa', 'user@telkomuniversity.ac.id', 16, 'dafa', '2026-07-05', '2026-07-05', 'PERLU AJA', '19:00:00', '22:56:00', 1, 'DIKEMBALIKAN', 'Baik / Layak', NULL, NULL, 'Kondisi: Baik / Layak | Catatan: OKE DONE | Foto Bukti: 5261298.png'),
-(6, 4, 'User Biasa', 'user@telkomuniversity.ac.id', 19, 'siuuu', '2026-07-05', '2026-07-05', '-', '08:30:00', '16:30:00', 1, 'REJECTED', 'Baik / Layak', NULL, NULL, '-');
+(6, 4, 'User Biasa', 'user@telkomuniversity.ac.id', 19, 'siuuu', '2026-07-05', '2026-07-05', '-', '08:30:00', '16:30:00', 1, 'REJECTED', 'Baik / Layak', NULL, NULL, '-'),
+(7, 4, 'User Biasa', 'user@telkomuniversity.ac.id', 16, 'dafa', '2026-07-06', '2026-07-06', 'perlu', '19:32:00', '23:11:00', 1, 'REJECTED', 'Baik / Layak', NULL, NULL, 'perlu');
 
 -- --------------------------------------------------------
 
@@ -106,6 +107,7 @@ CREATE TABLE `users` (
   `email` varchar(100) NOT NULL,
   `password` varchar(255) NOT NULL,
   `phone` varchar(20) DEFAULT NULL,
+  `nim` varchar(20) DEFAULT NULL,
   `role` varchar(50) DEFAULT 'USER',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -114,10 +116,12 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `name`, `username`, `email`, `password`, `phone`, `role`, `created_at`) VALUES
-(3, 'Muh Fahrul Fahrezi', 'fahrul', 'fahrul@telkomuniversity.ac.id', '12345678', '081234567890', 'Admin', '2026-07-04 08:24:06'),
-(4, 'User Biasa', 'userbiasa', 'user@telkomuniversity.ac.id', '12345678', '081299998888', 'Mahasiswa', '2026-07-04 08:29:34'),
-(5, 'Admin Kedua', '1202229999', 'admin2@telkomuniversity.ac.id', '12345678', '081234567899', 'Dosen', '2026-07-05 04:20:07');
+INSERT INTO `users` (`id`, `name`, `username`, `email`, `password`, `phone`, `nim`, `role`, `created_at`) VALUES
+(3, 'Muh Fahrul Fahrezi', 'fahrul', 'fahrul@telkomuniversity.ac.id', '12345678', '081234567890', NULL, 'Admin', '2026-07-04 08:24:06'),
+(4, 'User Biasa', 'userbiasa', 'user@telkomuniversity.ac.id', '12345678', '081299998888', NULL, 'Mahasiswa', '2026-07-04 08:29:34'),
+(5, 'Admin Kedua', '1202229999', 'admin2@telkomuniversity.ac.id', '12345678', '081234567899', NULL, 'Dosen', '2026-07-05 04:20:07'),
+(6, 'doseng', 'doseng', 'abcd@employee.telkomuniversity.ac.id', '$2y$10$DZNwM6740.nXChzu6X5jc.hTvfkHUe1ubhDA7RAHpLZ3I3..7G.6C', '081222264523', 'j04444444', 'dosen', '2026-07-06 12:11:29'),
+(7, 'mahasewa', 'mahasewa', 'abcd@student.telkomuniversity.ac.id', '$2y$10$syBm/bIOWDfAw3JCLK2A0eXoh.dJkqe5PrpFkFqlQs9gs2L0OCLbK', '0837277392', 'j0222222', 'mahasiswa', '2026-07-06 12:12:56');
 
 -- --------------------------------------------------------
 
@@ -225,7 +229,13 @@ INSERT INTO `user_tokens` (`id`, `user_id`, `token`, `created_at`, `expires_at`)
 (85, 4, '8f5bac41d30853c6453ff1f0c93fd4d5461dc1341485eac36f0284f1bc8cbdb9', '2026-07-05 09:29:01', '2026-07-06 09:29:01'),
 (86, 3, '646fd581755101343016af44e838ad1d5e9b0691925b5846f1d8014eeaefc311', '2026-07-05 09:31:28', '2026-07-06 09:31:28'),
 (87, 5, '78f4a3b188b1c723b1458e0881e988464fab0764140cbb9503f8efcbd47300af', '2026-07-05 09:33:20', '2026-07-06 09:33:20'),
-(88, 3, '84532921c66073b510d4990421402ed217d6d7ab8bdc0dafe05b68739390a6b8', '2026-07-05 09:33:48', '2026-07-06 09:33:48');
+(88, 3, '84532921c66073b510d4990421402ed217d6d7ab8bdc0dafe05b68739390a6b8', '2026-07-05 09:33:48', '2026-07-06 09:33:48'),
+(89, 3, 'e0306b84367257d55791295d088dcd9ee524bed51a3fe7f24c823ab0a62348c8', '2026-07-06 06:42:40', '2026-07-07 06:42:40'),
+(90, 4, 'b3498dd270747f1472e9d1f950ff7a5b12f26068872d6c6f2e3881c1da8688a8', '2026-07-06 06:43:37', '2026-07-07 06:43:37'),
+(91, 3, '49f939284b3144c4e29b7b572dcadc1a70e02d94802c75dff67975d2c317bc3d', '2026-07-06 06:44:20', '2026-07-07 06:44:20'),
+(92, 6, '1a039c118c1880cdcec6958db45f437463136236716f5d4766c701ed58e2e22e', '2026-07-06 12:11:51', '2026-07-07 12:11:51'),
+(93, 7, 'eee9d5387ace220258e86127b6eed6e5cd70ff345e66bb65d3e72727507cab89', '2026-07-06 12:15:02', '2026-07-07 12:15:02'),
+(94, 3, 'be94826b40f8031541a09c92ef14211f467c4a25889e07fdbb8ec90448e600cc', '2026-07-06 12:19:01', '2026-07-07 12:19:01');
 
 --
 -- Indexes for dumped tables
@@ -275,19 +285,19 @@ ALTER TABLE `assets`
 -- AUTO_INCREMENT for table `loans`
 --
 ALTER TABLE `loans`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `user_tokens`
 --
 ALTER TABLE `user_tokens`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=89;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=95;
 
 --
 -- Constraints for dumped tables

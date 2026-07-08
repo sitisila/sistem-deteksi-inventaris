@@ -6,7 +6,6 @@ import DashboardMain from './DashboardMain';
 import QRScanner from './components/QRScanner';
 import Swal from 'sweetalert2'; 
 
-// URL API Backend PHP Kelompok Lu
 export const API_BASE_URL = 'http://localhost/prisma-api';
 
 type ExtendedAsset = Asset & {
@@ -19,13 +18,14 @@ const App: React.FC = () => {
   const [lang, setLang] = useState<'id' | 'en'>('id');
   const t = useMemo(() => TRANSLATIONS[lang], [lang]);
 
-  // 🔄 FIX ANTI-LOGOUT: Mengambil sesi ril langsung dari localStorage
+  // 🎯 FIX AUTO-LOGOUT ON CLOSE: Mengubah storage utama dari localStorage ke sessionStorage woi!
   const [authToken, setAuthToken] = useState<string | null>(() => {
-    return localStorage.getItem('authToken') || localStorage.getItem('token');
+    return sessionStorage.getItem('authToken') || sessionStorage.getItem('token') ||
+           localStorage.getItem('authToken') || localStorage.getItem('token');
   });
 
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('currentUser');
+    const savedUser = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
@@ -33,7 +33,12 @@ const App: React.FC = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannedAsset, setScannedAsset] = useState<ExtendedAsset | null>(null);
-  const [activeTab, setActiveTab] = useState<string>('home');
+
+  // 🎯 REVISI SEBELUMNYA: Menu terakhir tetap aman selama tab tidak diclose woi
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    return sessionStorage.getItem('prismafit_active_tab') || 'home';
+  });
+
   const [selectedLab, setSelectedLab] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState(''); 
 
@@ -43,9 +48,13 @@ const App: React.FC = () => {
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [assetToPrint, setAssetToPrint] = useState<ExtendedAsset | null>(null);
 
-  // Helper fetch otomatis menyertakan token otentikasi Bearer dengan Headers standar
+  // Simpan state active tab ke sessionStorage agar musnah pas di-close woi
+  useEffect(() => {
+    sessionStorage.setItem('prismafit_active_tab', activeTab);
+  }, [activeTab]);
+
   const authFetch = (url: string, options: RequestInit = {}) => {
-    const token = authToken || localStorage.getItem('authToken') || localStorage.getItem('token');
+    const token = authToken || sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
     
     const clientHeaders = new Headers(options.headers || {});
     if (token) {
@@ -71,7 +80,6 @@ const App: React.FC = () => {
     { id: 'CellComm', name: 'Cellular Communication (CellComm) Laboratory', room: 'A1', color: 'from-cyan-500 to-cyan-700' },
   ], []);
 
-  // Ambil data segar dari MySQL
   const fetchAssets = async () => {
     try {
       const response = await authFetch(`${API_BASE_URL}/get_assets.php`);
@@ -88,7 +96,6 @@ const App: React.FC = () => {
     } catch (error) { console.error("Gagal mengambil data peminjaman:", error); }
   };
 
-  // Sinkronisasi data berkala dari database
   useEffect(() => {
     if (currentUser) {
       fetchAssets();
@@ -101,7 +108,6 @@ const App: React.FC = () => {
     }
   }, [currentUser]);
 
-  // 🎯 TRIGGER REFRESH OTOMATIS SAAT ADA EVENT HAPUS LOGISTIK
   useEffect(() => {
     const handleRefreshTrigger = () => {
       fetchLoans();
@@ -110,20 +116,23 @@ const App: React.FC = () => {
     return () => window.removeEventListener('refreshLoansData', handleRefreshTrigger);
   }, []);
 
+  // 🎯 SINKRONISASI SESI BARU: Mengamankan Token dan User ke sessionStorage
   useEffect(() => {
     if (authToken) {
-      localStorage.setItem('authToken', authToken);
+      sessionStorage.setItem('authToken', authToken);
     } else {
+      sessionStorage.clear();
       localStorage.removeItem('authToken');
       localStorage.removeItem('token');
+      localStorage.removeItem('currentUser');
     }
   }, [authToken]);
 
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
     } else {
-      localStorage.removeItem('currentUser');
+      sessionStorage.removeItem('currentUser');
     }
   }, [currentUser]);
 
@@ -136,6 +145,10 @@ const App: React.FC = () => {
       });
       const result = await response.json();
       if (result.status === 'success') {
+        // Simpan ke sessionStorage biar auto hancur pas didelete woi
+        sessionStorage.setItem('authToken', result.token);
+        sessionStorage.setItem('currentUser', JSON.stringify(result.user));
+        
         setCurrentUser(result.user);
         setAuthToken(result.token);
         return true;
@@ -368,7 +381,6 @@ const App: React.FC = () => {
     }
   };
 
-  // 🎯 FUNGSI BARU UNTUK TOLAK PENGAJUAN PENGEMBALIAN PADA TAB ACTIVE MONITORING
   const handleRejectReturn = async (loanId: string) => {
     try {
       const response = await authFetch(`${API_BASE_URL}/reject_return.php`, {
@@ -436,6 +448,8 @@ const App: React.FC = () => {
         onRegister={handleRegisterSubmit} 
         onForgotPassword={handleForgotPassword}
         onLoginSuccess={(token: string, user: any) => {
+          sessionStorage.setItem('authToken', token);
+          sessionStorage.setItem('currentUser', JSON.stringify(user));
           setAuthToken(token);
           setCurrentUser(user);
         }}
@@ -465,7 +479,10 @@ const App: React.FC = () => {
           setAssets={setAssets as any} 
           loans={loans} 
           activeTab={activeTab} 
-          setActiveTab={setActiveTab as any} 
+          setActiveTab={(tab: string) => {
+            sessionStorage.setItem('prismafit_active_tab', tab);
+            setActiveTab(tab);
+          }} 
           selectedLab={selectedLab} 
           setSelectedLab={setSelectedLab} 
           setIsScannerOpen={setIsScannerOpen} 
@@ -484,7 +501,7 @@ const App: React.FC = () => {
           onSaveAsset={handleSaveNewAsset}
           onLoanSubmit={handleLoanSubmit}
           onReturnAsset={handleReturnAsset} 
-          onRejectReturn={handleRejectReturn} // 🎯 OPER PADA PROPS DASHBOARDMAIN
+          onRejectReturn={handleRejectReturn} 
         />
 
         {isScannerOpen && (

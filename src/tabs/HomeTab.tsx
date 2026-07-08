@@ -20,29 +20,32 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEnglish, setIsEnglish] = useState(false);
 
+  // 🎯 REVISI: State Pencarian Alat & Pilihan dalam Dropdown
+  const [assetSearchQuery, setAssetSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
   const isMahasiswa = currentUser?.role?.toLowerCase() === 'mahasiswa';
   const currentUserId = currentUser?.id || currentUser?.user_id;
 
-  // 🎯 DETEKTOR LIVE ANTI-GAGAL: Membaca teks sidebar secara berkala tanpa bergantung state parent
+  // Live detector bahasa biar sinkron murni
   useEffect(() => {
     const handleLangCheck = () => {
       const pageText = document.body?.innerText || '';
-      // Jika sidebar sukses berubah jadi Inggris, halaman ini wajib ikut Inggris woi
       const hasEnglishMenu = pageText.includes('Manage Assets') || pageText.includes('Loan History') || pageText.includes('Active Monitoring');
-      
       setIsEnglish(t?.lang === 'en' || localStorage.getItem('lang') === 'en' || localStorage.getItem('language') === 'en' || hasEnglishMenu);
     };
 
     const interval = setInterval(handleLangCheck, 300);
     handleLangCheck();
-
     return () => clearInterval(interval);
   }, [t]);
 
   // --- 📊 CALCULATOR STATISTIK KHUSUS MAHASISWA ---
   const mahasiswaStats = useMemo(() => {
-    const myLoans = loans?.filter(loan => String(loan.userId || loan.user_id || loan.nim) === String(currentUserId || currentUser?.nim)) || [];
+    // 🎯 REVISI FIX NIM: Disamakan akurat mengambil data properti nim login database lu woi
+    const userNimStr = String(currentUser?.nim || currentUser?.username || currentUserId || '');
+    const myLoans = loans?.filter(loan => String(loan.userId || loan.user_id || loan.nim) === userNimStr) || [];
 
     const borrowedCount = myLoans.filter(l => 
       ['APPROVED', 'ACTIVE', 'DIPINJAM', 'BORROWED'].includes(String(l.status).toUpperCase())
@@ -66,14 +69,25 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
     return { borrowedCount, returnedCount, deadlineCount, myLoans };
   }, [loans, currentUserId, currentUser]);
 
-  // --- 🔄 STATE FORM PEMINJAMAN ---
+  // --- 🔄 STATE FORM PEMINJAMAN UPDATE ---
   const [formData, setFormData] = useState({
     assetId: '',
+    selectedAssetName: '',
     borrowTime: '',
     returnTime: '',
     phoneNumber: '', 
+    course: '', // 🎯 REVISI TAMBAHAN: Kolom Baru Mata Kuliah
     reason: ''
   });
+
+  // Filter list aset berdasarkan ketikan user di kolom pencarian alat
+  const filteredAssetOptions = useMemo(() => {
+    if (!assetSearchQuery) return assets;
+    return assets.filter(a => {
+      const nameStr = String(a.name || a.asset_name || '').toLowerCase();
+      return nameStr.includes(assetSearchQuery.toLowerCase());
+    });
+  }, [assets, assetSearchQuery]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -82,10 +96,10 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
   const handleQuickLoanSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.assetId || !formData.borrowTime || !formData.returnTime || !formData.phoneNumber || !formData.reason) {
+    if (!formData.assetId || !formData.borrowTime || !formData.returnTime || !formData.phoneNumber || !formData.course || !formData.reason) {
       Swal.fire({
-        title: 'Gagal!',
-        text: 'Silakan isi seluruh kolom formulir termasuk Jam Mulai & Jam Selesai secara lengkap ',
+        title: isEnglish ? 'Failed!' : 'Gagal!',
+        text: isEnglish ? 'Please fill out all mandatory fields including Course and Time.' : 'Silakan isi seluruh kolom formulir termasuk Mata Kuliah, Jam Mulai & Jam Selesai secara lengkap.',
         icon: 'warning',
         confirmButtonColor: '#5c1313',
         customClass: { popup: 'rounded-[2rem]' }
@@ -95,8 +109,8 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
 
     if (formData.returnTime <= formData.borrowTime) {
       Swal.fire({
-        title: 'Waktu Tidak Valid!',
-        text: 'Jam Selesai tidak boleh sama atau mendahului Jam Mulai peminjaman ',
+        title: isEnglish ? 'Invalid Time!' : 'Waktu Tidak Valid!',
+        text: isEnglish ? 'Return time cannot be prior or equal to borrow time.' : 'Jam Selesai tidak boleh sama atau mendahului Jam Mulai peminjaman.',
         icon: 'error',
         confirmButtonColor: '#5c1313',
         customClass: { popup: 'rounded-[2rem]' }
@@ -109,8 +123,8 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
 
     if (currentQty <= 0) {
       Swal.fire({
-        title: 'Stok Habis!',
-        text: 'Maaf, kuantitas aset logistik laboratorium ini sedang kosong!',
+        title: isEnglish ? 'Out of Stock!' : 'Stok Habis!',
+        text: isEnglish ? 'Sorry, this laboratory asset is currently out of stock.' : 'Maaf, kuantitas aset logistik laboratorium ini sedang kosong!',
         icon: 'error',
         confirmButtonColor: '#5c1313',
         customClass: { popup: 'rounded-[2rem]' }
@@ -131,6 +145,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
       borrowTime: formData.borrowTime,
       returnTime: formData.returnTime,
       phone: formData.phoneNumber,
+      course: formData.course, // 🎯 REVISI: Kirim data Mata Kuliah ke backend API PHP lu woi
       purpose: formData.reason,
       reason: formData.reason,
       quantity: 1
@@ -139,21 +154,12 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
     try {
       if (onLoanSubmit) {
         await onLoanSubmit(payload); 
-        
-        Swal.fire({
-          title: 'Berhasil!',
-          text: 'Permintaan peminjaman alat berhasil diajukan ke asisten lab',
-          icon: 'success',
-          confirmButtonColor: '#5c1313',
-          customClass: { popup: 'rounded-[2rem]' }
-        });
-
-        setFormData({ assetId: '', borrowTime: '', returnTime: '', phoneNumber: '', reason: '' });
+        setFormData({ assetId: '', selectedAssetName: '', borrowTime: '', returnTime: '', phoneNumber: '', course: '', reason: '' });
+        setAssetSearchQuery('');
         setIsModalOpen(false);
       }
     } catch (err) {
       console.error("Gagal submit loan frontend:", err);
-      Swal.fire('Error!', 'Gagal terhubung atau memproses data di server API.', 'error');
     }
   };
 
@@ -161,27 +167,20 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
     const { value: url } = await Swal.fire({
       title: 'Perbarui Tautan Panduan',
       input: 'url',
-      inputLabel: 'Masukkan Link Google Drive / Dropbox Berkas Panduan',
       inputValue: guideUrl,
-      placeholder: 'https://example.com/buku-panduan.pdf',
       showCancelButton: true,
       confirmButtonColor: '#5c1313',
       cancelButtonColor: '#d33',
-      confirmButtonText: 'Simpan Tautan',
-      cancelButtonText: 'Batal',
-      customClass: { popup: 'rounded-[2rem]' }
     } as any);
 
     if (url) {
       setGuideUrl(url);
       localStorage.setItem(GUIDE_URL_STORAGE_KEY, url);
-      Swal.fire({ title: 'Berhasil!', text: 'Tautan panduan diperbarui.', icon: 'success', confirmButtonColor: '#5c1313' });
     }
   };
 
   const handleOpenDocument = () => {
     if (guideUrl) window.open(guideUrl, '_blank', 'noopener,noreferrer');
-    else Swal.fire('Kosong!', 'Dokumen panduan belum diatur oleh admin.', 'info');
   };
 
   const displayActivities = useMemo(() => {
@@ -222,7 +221,8 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
               </h4>
             </div>
 
-            {isMahasiswa && (
+            {/* 🎯 REVISI PROTEKSI AKSES SAKTI: Hanya role 'mahasiswa' asli yang tombolnya muncul dan bisa pinjam! Aslab/Admin terkunci otomatis */}
+            {currentUser?.role?.toLowerCase() === 'mahasiswa' && (
               <button 
                 onClick={() => setIsModalOpen(true)}
                 className="px-4 py-2 bg-brand text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-md hover:bg-gray-950 transition-all transform active:scale-95 flex items-center gap-2"
@@ -340,7 +340,6 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
         <div className="space-y-3">
           {displayActivities?.length > 0 ? displayActivities.map((loan: any) => {
             const statusText = String(loan.status || '').toUpperCase();
-            
             const isReturned = ['RETURNED', 'DIKEMBALIKAN'].includes(statusText);
             const isRejected = ['REJECTED', 'DITOLAK'].includes(statusText);
             const isPending = ['PENDING', 'PROSES', 'MENUNGGU'].includes(statusText);
@@ -401,22 +400,15 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
           <div className="bg-white rounded-[2.5rem] w-full max-w-md p-8 border border-gray-100 shadow-2xl flex flex-col relative animate-in zoom-in-95 duration-200">
             
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-xl font-black text-utama tracking-tight uppercase">{isEnglish ? "EQUIPMENT LOAN FORM" : "FORM PENGEMBALIAN ALAT"}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-brand bg-gray-50 p-1 rounded-lg">
+              <h3 className="text-xl font-black text-utama tracking-tight uppercase">{isEnglish ? "EQUIPMENT LOAN FORM" : "FORM PEMINJAMAN ALAT"}</h3>
+              <button onClick={() => { setIsModalOpen(false); setIsDropdownOpen(false); }} className="text-gray-400 hover:text-brand bg-gray-50 p-1 rounded-lg">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
             </div>
 
             <form onSubmit={handleQuickLoanSubmit} className="space-y-4">
+              {/* 🎯 SINKRONISASI IDENTITAS NIM DATABASE RIL */}
               <div className="bg-brand/[0.02] border border-brand/10 rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between border-b border-brand/10 pb-2">
-                  <span className="text-[9px] font-black tracking-widest text-brand uppercase bg-brand/5 px-2.5 py-1 rounded-md">
-                    {isEnglish ? "Borrower Info" : "Info Peminjam"}
-                  </span>
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">
-                    {isEnglish ? "Verified System" : "Sistem Terverifikasi"}
-                  </span>
-                </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                   <div>
                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-0.5">{isEnglish ? "Full Name" : "Nama Lengkap"}</p>
@@ -428,11 +420,11 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
                   </div>
                   <div>
                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-0.5">NIM</p>
-                    <p className="text-xs font-black text-brand tracking-wider">{currentUser?.nim || currentUser?.id || '-'}</p>
+                    <p className="text-xs font-black text-brand tracking-wider">{currentUser?.nim || currentUser?.username || '-'}</p>
                   </div>
                   <div>
                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-0.5">{isEnglish ? "Phone Number" : "Nomor HP"}</p>
-                    <p className="text-xs font-bold text-gray-700">{currentUser?.phone || currentUser?.telepon || currentUser?.no_telp || '081299998888'}</p>
+                    <p className="text-xs font-bold text-gray-700">{currentUser?.phone || currentUser?.telepon || '081299998888'}</p>
                   </div>
                 </div>
               </div>
@@ -447,26 +439,69 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
                 />
               </div>
 
+              {/* 🎯 REVISI MANDAT: SEARCHABLE FILTER DROPDOWN ALAT */}
+              <div className="relative">
+                <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">
+                  {isEnglish ? "Search & Select Equipment" : "Cari & Pilih Alat Lab"}
+                </label>
+                <div 
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama cursor-pointer flex justify-between items-center"
+                >
+                  <span className={formData.selectedAssetName ? "text-utama" : "text-gray-400"}>
+                    {formData.selectedAssetName || (isEnglish ? "-- Search Equipment Name --" : "-- Ketik/Cari Nama Aset --")}
+                  </span>
+                  <svg className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/></svg>
+                </div>
+
+                {isDropdownOpen && (
+                  <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-2xl p-3 z-[9999] space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                    <input 
+                      type="text"
+                      autoFocus
+                      placeholder={isEnglish ? "Type here to filter asset..." : "Ketik nama alat logistik disini..."}
+                      value={assetSearchQuery}
+                      onChange={(e) => setAssetSearchQuery(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-gray-100 rounded-xl text-xs font-semibold focus:outline-none focus:border-brand"
+                    />
+                    <div className="max-h-40 overflow-y-auto divide-y divide-gray-50">
+                      {filteredAssetOptions.length > 0 ? (
+                        filteredAssetOptions.map(a => {
+                          const stock = parseInt(a.QTY || a.qty || a.quantity || a.stok || '0');
+                          const hasStock = stock > 0;
+                          return (
+                            <div 
+                              key={a.id}
+                              onClick={() => {
+                                if (hasStock) {
+                                  setFormData({ ...formData, assetId: String(a.id), selectedAssetName: `${a.name || a.asset_name} (${isEnglish ? 'Stock' : 'Stok'}: ${stock})` });
+                                  setIsDropdownOpen(false);
+                                }
+                              }}
+                              className={`py-2 px-1 text-xs font-bold transition-all flex justify-between ${hasStock ? 'cursor-pointer text-gray-700 hover:text-brand hover:bg-brand/5' : 'text-gray-300 cursor-not-allowed'}`}
+                            >
+                              <span>{a.name || a.asset_name}</span>
+                              <span className="text-[10px] uppercase font-black">{hasStock ? `${isEnglish ? 'Ready' : 'Tersedia'}: ${stock} Pcs` : '[OUT OF STOCK]'}</span>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="py-3 text-center text-gray-400 text-[11px] font-medium">{isEnglish ? 'No assets match your search.' : 'Aset tidak ditemukan.'}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 🎯 REVISI MANDAT: INPUT KOLOM BARU MATA KULIAH */}
               <div>
                 <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">
-                  {isEnglish ? "Select Equipment / Lab Asset" : "Pilih Alat / Aset Lab"}
+                  {isEnglish ? "Course Name" : "Mata Kuliah"}
                 </label>
-                <select 
-                  name="assetId" value={formData.assetId} onChange={handleInputChange}
-                  className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama focus:outline-none focus:border-brand transition-all"
-                >
-                  <option value="">{isEnglish ? "-- Click To Select Asset --" : "-- Klik Untuk Memilih Aset --"}</option>
-                  {assets?.map(a => {
-                    const stock = parseInt(a.QTY || a.qty || a.quantity || a.stok || '0');
-                    const hasStock = stock > 0;
-                    
-                    return (
-                      <option key={a.id} value={a.id} disabled={!hasStock}>
-                        {a.name || a.asset_name || a.assetName} {isEnglish ? ` (Available: ${stock} Pcs)` : ` (Tersedia: ${stock} Pcs)`} {!hasStock ? (isEnglish ? ' - [OUT OF STOCK]' : ' - [HABIS / DILUAR]') : ''}
-                      </option>
-                    );
-                  })}
-                </select>
+                <input 
+                  type="text" name="course" value={formData.course} onChange={handleInputChange} placeholder={isEnglish ? "e.g., Software Engineering" : "Contoh: Rekayasa Perangkat Lunak / Jaringan"}
+                  className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama placeholder-gray-400 focus:outline-none focus:border-brand transition-all"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -495,7 +530,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3.5 bg-gray-100 text-gray-600 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all">
+                <button type="button" onClick={() => { setIsModalOpen(false); setIsDropdownOpen(false); }} className="flex-1 py-3.5 bg-gray-100 text-gray-600 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all">
                   {isEnglish ? "Cancel" : "Batal"}
                 </button>
                 <button type="submit" className="flex-1 py-3.5 bg-brand text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md shadow-brand/10">

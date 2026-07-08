@@ -1,201 +1,221 @@
-import React, { useMemo, useState } from 'react'; 
-import EditAssetModal from './EditAssetModal'; 
+import React, { useState, useMemo, useEffect } from 'react';
 
-interface ManageAssetTabProps {
-  currentUser: any;
-  authToken?: string | null;
-  setIsAddAssetOpen: (val: boolean) => void;
-  searchTerm: string;
-  setSearchTerm: (val: string) => void;
-  assets: any[];
-  setAssets: React.Dispatch<React.SetStateAction<any[]>>;
-  selectedLab: any;
-  setSelectedLab: (val: string | null) => void;
-  onSaveAsset: (data: any) => void; 
-  labList: any[]; 
-  t: any;
+interface Asset {
+  id?: number | string;
+  code?: string;
+  name?: string;
+  asset_name?: string;
+  qty?: number | string;
+  QTY?: number | string;
+  quantity?: number | string;
+  stok?: number | string;
+  status?: string;
+  conditionStatus?: string;
+  condition?: string;
+  lab?: string;
+  serialNumber?: string;
+  category?: string;
 }
 
-const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ 
-  currentUser, authToken, setIsAddAssetOpen, searchTerm, setSearchTerm, 
-  assets, setAssets, selectedLab, setSelectedLab, onSaveAsset, labList, t 
-}) => {
-  
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedAssetForEdit, setSelectedAssetForEdit] = useState<any>(null);
+interface ManageAssetTabProps {
+  assets: Asset[];
+  onSaveAsset: (data: any) => Promise<void> | void;
+  currentUser: any;
+  t?: any;
+}
 
-  const adminCategories = [
-    { id: 'Perangkat IT & Komputasi', label: t?.catIT || 'Perangkat IT' },
-    { id: 'Perangkat Jaringan & Telekomunikasi', label: t?.catNet || 'Jaringan' },
-    { id: 'Perangkat Elektronika & IoT', label: t?.catIoT || 'Elektronika & IoT' },
-    { id: 'Peralatan Laboratorium & Pengukuran', label: t?.catLab || 'Peralatan Lab' },
-    { id: 'Aset Dokumen & Administrasi', label: t?.catDoc || 'Administrasi' },
-    { id: 'Perangkat Keamanan & Kontrol Akses', label: t?.catSec || 'Keamanan' },
-    { id: 'Aset Non-Teknis tapi Bernilai', label: t?.catOther || 'Lainnya' }
+const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, currentUser, t }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEnglish, setIsEnglish] = useState(false);
+
+  // State Form Input Tambah/Edit Aset
+  const [formData, setFormData] = useState({
+    id: '',
+    code: '',
+    name: '',
+    qty: '1',
+    status: 'AVAILABLE',
+    condition: 'GOOD',
+    lab: 'Mechanical and Electrical Workshop Laboratory',
+    serialNumber: '',
+    category: 'IT'
+  });
+
+  // 🎯 DETEKTOR LIVE ANTI-GAGAL: Membaca teks DOM agar sinkron bahasa murni
+  useEffect(() => {
+    const handleLangCheck = () => {
+      const pageText = document.body?.innerText || '';
+      const hasEnglishMenu = pageText.includes('Manage Assets') || pageText.includes('Loan History') || pageText.includes('Active Monitoring');
+      setIsEnglish(t?.lang === 'en' || localStorage.getItem('lang') === 'en' || hasEnglishMenu);
+    };
+    const interval = setInterval(handleLangCheck, 300);
+    handleLangCheck();
+    return () => clearInterval(interval);
+  }, [t]);
+
+  const categories = [
+    { id: 'ALL', idLabel: 'SEMUA', enLabel: 'ALL' },
+    { id: 'IT', idLabel: 'PERANGKAT IT & KOMPUTASI', enLabel: 'IT & COMPUTING DEVICES' },
+    { id: 'NETWORK', idLabel: 'PERANGKAT JARINGAN & TELEKOMUNIKASI', enLabel: 'NETWORKING & TELECOMMUNICATION' },
+    { id: 'IOT', idLabel: 'PERANGKAT ELEKTRONIKA & IOT', enLabel: 'ELECTRONICS & IOT DEVICES' },
+    { id: 'LAB', idLabel: 'PERALATAN LABORATORIUM & PENGUKURAN', enLabel: 'LABORATORY & MEASUREMENT TOOLS' },
+    { id: 'DOC', idLabel: 'ASET DOKUMEN & ADMINISTRASI', enLabel: 'DOCUMENT & ADMINISTRATIVE ASSETS' },
   ];
 
-  const parseAssetQty = (descriptionStr: string): number => {
-    if (!descriptionStr || !descriptionStr.includes('||META:')) return 0;
-    try {
-      const parts = descriptionStr.split('||');
-      const metaPart = parts.find(p => p.startsWith('META:'));
-      if (metaPart) {
-        const base64Str = metaPart.replace('META:', '');
-        const decodedJson = atob(base64Str);
-        const metaObj = JSON.parse(decodedJson);
-        return parseInt(metaObj.qty || metaObj.quantity || 0);
-      }
-    } catch (e) {
-      console.error("Gagal ekstraksi QTY dari meta-data description", e);
-    }
-    return 0;
-  };
-
-  const filteredData = useMemo(() => {
-    return assets?.filter(a => {
-      const nameKey = a.asset_name || a.name || '';
-      const matchesSearch = (
-        nameKey.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (a.serialNumber && a.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-      
-      const currentSelectedLabId = typeof selectedLab === 'object' ? selectedLab?.id : selectedLab;
-      
-      let matchesCategory = true;
-      if (currentSelectedLabId) {
-        const assetCat = String(a.category || '').toLowerCase();
-        const filterCat = String(currentSelectedLabId).toLowerCase();
-        
-        const keyword = filterCat.split(' ')[0]; 
-        matchesCategory = assetCat.includes(keyword) || filterCat.includes(assetCat) || assetCat === filterCat;
-      }
-      
-      return matchesCategory && matchesSearch;
-    }) || [];
-  }, [assets, selectedLab, searchTerm]);
-
-  const openEditModal = (asset: any) => {
-    const sanitizedLab = typeof asset.lab === 'object' ? (asset.lab?.name || asset.lab?.id || 'Ruangan Admin (Aset Kantor)') : (asset.lab || 'Ruangan Admin (Aset Kantor)');
-    const extractedQty = parseAssetQty(asset.description || asset.deskripsi || '');
-    
-    setSelectedAssetForEdit({ 
-      ...asset, 
-      lab: sanitizedLab, 
-      name: asset.asset_name || asset.name,
-      QTY: extractedQty,
-      qty: extractedQty
+  const filteredAssets = useMemo(() => {
+    return assets.filter(asset => {
+      const assetName = String(asset.name || asset.asset_name || '').toLowerCase();
+      const assetCode = String(asset.code || '').toLowerCase();
+      const matchesSearch = assetName.includes(searchTerm.toLowerCase()) || assetCode.includes(searchTerm.toLowerCase());
+      const assetCategory = String(asset.category || '').toUpperCase();
+      const matchesCategory = selectedCategory === 'ALL' || assetCategory === selectedCategory;
+      return matchesSearch && matchesCategory;
     });
-    setIsEditModalOpen(true);
-  };
+  }, [assets, searchTerm, selectedCategory]);
 
-  const canEdit = currentUser?.role?.toLowerCase() === 'admin' || currentUser?.role?.toLowerCase() === 'dosen';
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await onSaveAsset(formData);
+    setIsModalOpen(false);
+    setFormData({ id: '', code: '', name: '', qty: '1', status: 'AVAILABLE', condition: 'GOOD', lab: 'Mechanical and Electrical Workshop Laboratory', serialNumber: '', category: 'IT' });
+  };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        {/* 🎯 TRANSLATED: Judul Halaman */}
-        <h2 className="text-4xl font-black text-gray-950 uppercase tracking-tight">
-          {t?.manageAssetTitle || 'KELOLA ASET'}
-        </h2>
-        {currentUser?.role?.toLowerCase() === 'admin' && (
-          <button onClick={() => setIsAddAssetOpen(true)} 
-            className="px-8 py-4 bg-brand text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center gap-3">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4" /></svg>
-            {t?.addAsset || 'TAMBAH ALAT BARU'}
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex justify-between items-center px-1">
+        <h3 className="text-3xl font-black text-gray-950 uppercase tracking-tight">
+          {isEnglish ? 'MANAGE LAB ASSETS' : 'KELOLA DATA ASET'}
+        </h3>
+        
+        {/* 🎯 REVISI SAKTI: Deteksi fleksibel mencakup ketikan role "Asisten Lab" kelompok lu woi! */}
+        {(
+          currentUser?.role?.toLowerCase() === 'admin' || 
+          currentUser?.role?.toLowerCase().includes('aslab') || 
+          currentUser?.role?.toLowerCase().includes('asisten')
+        ) && (
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="px-5 py-3 bg-brand hover:bg-gray-950 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md transform active:scale-95 flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+            <span>{isEnglish ? 'ADD NEW ASSET' : 'TAMBAH ASET BARU'}</span>
           </button>
         )}
       </div>
 
-      {/* 🎯 TRANSLATED: Placeholder Input Cari */}
-      <div className="relative group">
-        <input type="text" placeholder={t?.searchAssetPlaceholder || "Cari seluruh aset laboratorium / ruangan..."}
-          className="w-full pl-16 pr-8 py-5 bg-[#F7F7F7] border border-transparent rounded-[2.5rem] outline-none focus:bg-white focus:border-gray-200 font-bold text-sm transition-all shadow-sm placeholder-gray-400 text-gray-800"
-          value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        <svg className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+      {/* SEARCH BAR */}
+      <div className="relative w-full max-w-2xl px-1">
+        <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder={isEnglish ? "Search asset by name or code..." : "Cari nama atau kode aset..."}
+          className="w-full pl-12 pr-4 py-4 bg-[#F7F7F7] border border-transparent rounded-full text-xs font-bold text-gray-800 placeholder-gray-400 focus:outline-none focus:bg-white focus:border-gray-200 transition-all shadow-sm" />
+        <svg className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
       </div>
 
-      {/* 🎯 TRANSLATED: Tombol Semua Klasifikasi */}
-      <div className="flex flex-wrap gap-2.5">
-        <button onClick={() => setSelectedLab(null)}
-          className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${!selectedLab ? 'bg-gray-950 text-white border-gray-950 shadow-sm' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'}`}>
-          {t?.allFilter || 'Semua Klasifikasi'}
-        </button>
-        {adminCategories.map((cat) => {
-          const currentSelectedLabId = typeof selectedLab === 'object' ? selectedLab?.id : selectedLab;
-          return (
-            <button key={cat.id} onClick={() => setSelectedLab(cat.id)}
-              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${currentSelectedLabId === cat.id ? 'bg-gray-950 text-white border-gray-950 shadow-sm' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'}`}>
-              {cat.label || cat.id}
-            </button>
-          );
-        })}
+      {/* CATEGORY FILTERS */}
+      <div className="flex gap-2 overflow-x-auto pb-2 px-1 scrollbar-none">
+        {categories.map((cat) => (
+          <button key={cat.id} type="button" onClick={() => setSelectedCategory(cat.id)}
+            className={`px-4 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-wider border whitespace-nowrap transition-all ${selectedCategory === cat.id ? 'bg-utama text-white border-utama shadow-sm' : 'bg-white text-gray-400 border-gray-100'}`}>
+            {isEnglish ? cat.enLabel : cat.idLabel}
+          </button>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {filteredData.length > 0 ? (
-          filteredData.map((asset) => {
-            const stockQty = parseAssetQty(asset.description || asset.deskripsi || '');
-            
+      {/* LIST INVENTARIS ASSET */}
+      <div className="space-y-4 px-1">
+        {filteredAssets.length > 0 ? (
+          filteredAssets.map((asset) => {
+            const stock = asset.quantity ?? asset.qty ?? asset.QTY ?? asset.stok ?? 0;
             return (
-              <div key={asset.id} className="bg-white border border-gray-100 p-6 rounded-[2rem] flex items-center justify-between hover:shadow-xl hover:border-brand/10 transition-all group">
-                <div className="flex items-center gap-6">
-                  <div>
-                     <p className="text-[10px] font-black text-brand uppercase tracking-[0.2em] mb-0.5">{asset.category || (t?.lang === 'en' ? 'General' : 'Umum')}</p>
-                     
-                     <div className="flex items-center gap-3">
-                       <h4 className="font-black text-gray-950 uppercase text-lg group-hover:text-brand transition-colors leading-tight">
-                         {asset.asset_name || asset.name || (t?.lang === 'en' ? 'Unnamed Asset' : 'Aset Tanpa Nama')}
-                       </h4>
-                       {/* 🎯 TRANSLATED: Label Stok Row */}
-                       <span className="text-[10px] font-black uppercase tracking-wider bg-zinc-100 text-zinc-700 px-2.5 py-1 rounded-md border border-zinc-200">
-                         {t?.stockLabel || 'Stok'}: {stockQty} Pcs
-                       </span>
-                     </div>
-
-                     <p className="text-[10px] font-bold text-gray-400 mt-1.5 uppercase tracking-wider">
-                       SN: {asset.serialNumber || '-'} | {t?.location || 'Lokasi'}: {typeof asset.lab === 'object' ? (asset.lab?.name || 'Objek Lab') : asset.lab}
-                     </p>
+              <div key={asset.id} className="bg-white border border-gray-100 p-5 rounded-[2rem] shadow-sm flex items-center justify-between relative overflow-hidden group">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-[9px] font-bold text-gray-400">
+                    <span className="font-mono text-brand uppercase">{asset.code || 'CODE'}</span>
+                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md font-black uppercase">{isEnglish ? 'STOCK' : 'STOK'}: {stock} PCS</span>
                   </div>
+                  <h4 className="font-black text-utama text-base uppercase leading-tight">{asset.name || asset.asset_name}</h4>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase truncate max-w-md">SN: {asset.serialNumber || '-'} | LOCATION: {asset.lab}</p>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  {canEdit && (
-                    <button onClick={(e) => { e.stopPropagation(); openEditModal(asset); }} 
-                      className="px-5 py-2.5 bg-gray-50 text-gray-800 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-950 hover:text-white transition-all border border-gray-100">
-                      {t?.editBtn || 'Ubah'}
-                    </button>
-                  )}
-                  {/* 🎯 TRANSLATED: Badge Ketersediaan */}
-                  <div className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
-                    stockQty > 0 ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-600 border-red-100'
-                  }`}>
-                    {stockQty > 0 ? (t?.available || 'Tersedia') : (t?.lang === 'en' ? 'Empty' : 'Habis')}
-                  </div>
-                </div>
+                <span className="px-3 py-1.5 bg-green-50 text-green-600 border border-green-100 rounded-xl font-black text-[9px] uppercase tracking-wider">
+                  {isEnglish ? 'AVAILABLE' : 'TERSEDIA'}
+                </span>
               </div>
             );
           })
         ) : (
-          /* 🎯 TRANSLATED: Teks Data Kosong */
-          <div className="py-20 text-center bg-[#FDFDFD] rounded-[2rem] border border-dashed border-gray-200 text-gray-400 font-bold uppercase tracking-widest text-xs">
-            {t?.noAssetInLab || 'Tidak ada data aset laboratorium ditemukan'}
+          <div className="py-20 text-center bg-white border border-gray-100 rounded-[2rem]">
+            <p className="text-gray-400 font-black text-xs uppercase tracking-widest">{isEnglish ? 'NO ASSETS FOUND' : 'DATA ASET TIDAK DITEMUKAN'}</p>
           </div>
         )}
       </div>
 
-      {isEditModalOpen && selectedAssetForEdit && (
-        <EditAssetModal 
-          isOpen={isEditModalOpen}
-          onClose={() => { setIsEditModalOpen(false); setSelectedAssetForEdit(null); }}
-          labList={labList}
-          authToken={authToken}
-          onSave={(updatedData) => {
-            onSaveAsset({ ...updatedData, id: selectedAssetForEdit.id });
-            setIsEditModalOpen(false);
-            setSelectedAssetForEdit(null);
-          }}
-          t={t}
-          initialData={selectedAssetForEdit} 
-        />
+      {/* MODAL FORM TAMBAH ASET */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-8 border border-gray-100 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-xl font-black text-utama tracking-tight uppercase">
+                {isEnglish ? 'ADD NEW LAB ASSET' : 'FORM TAMBAH ALAT BARU'}
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-brand bg-gray-50 p-1.5 rounded-lg">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">{isEnglish ? 'ASSET CODE' : 'KODE ASET'}</label>
+                <input type="text" required placeholder="Contoh: FIT-G13-001" value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value})} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama" />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">{isEnglish ? 'ASSET NAME' : 'NAMA ALAT'}</label>
+                <input type="text" required placeholder={isEnglish ? "e.g., Digital Oscilloscope" : "Contoh: Solder Listrik / Toolkit"} value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">{isEnglish ? 'STOCK QUANTITY' : 'JUMLAH STOK'}</label>
+                  <input type="number" required min="1" value={formData.qty} onChange={(e) => setFormData({...formData, qty: e.target.value})} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">SERIAL NUMBER (SN)</label>
+                  <input type="text" placeholder="Optional" value={formData.serialNumber} onChange={(e) => setFormData({...formData, serialNumber: e.target.value})} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">{isEnglish ? 'LABORATORY LOCATION' : 'LOKASI LABORATORIUM'}</label>
+                <select value={formData.lab} onChange={(e) => setFormData({...formData, lab: e.target.value})} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama">
+                  <option value="Mechanical and Electrical Workshop Laboratory">Mechanical Workshop (G13)</option>
+                  <option value="Telecommunication Networking (TelNet) Laboratory">TelNet Laboratory (G4)</option>
+                  <option value="Optical Communication System (OCS) Laboratory">OCS Laboratory (G9)</option>
+                  <option value="Wireless Communication (WiComm) Laboratory">WiComm Laboratory (E3)</option>
+                  <option value="Telecommunication Technology Research Laboratory">TTRL Laboratory (A1)</option>
+                  <option value="Cellular Communication (CellComm) Laboratory">CellComm Laboratory (A1)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">{isEnglish ? 'CLASSIFICATION CATEGORY' : 'KLASIFIKASI KATEGORI'}</label>
+                <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama">
+                  <option value="IT">IT & COMPUTING DEVICES</option>
+                  <option value="NETWORK">NETWORKING & TELECOMMUNICATION</option>
+                  <option value="IOT">ELECTRONICS & IOT DEVICES</option>
+                  <option value="LAB">LABORATORY & MEASUREMENT TOOLS</option>
+                  <option value="DOC">DOCUMENT & ADMINISTRATIVE ASSETS</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3.5 bg-gray-100 text-gray-600 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all">{isEnglish ? 'CANCEL' : 'BATAL'}</button>
+                <button type="submit" className="flex-1 py-3.5 bg-brand text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md shadow-brand/10">{isEnglish ? 'SAVE ASSET' : 'SIMPAN ASET'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

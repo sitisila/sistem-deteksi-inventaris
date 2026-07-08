@@ -70,9 +70,10 @@ const AdminRoomTab: React.FC<AdminRoomTabProps> = ({ authToken, t }) => {
   }, []);
 
   const handleRoleChange = async (userId: number | string, currentRole: string, newRole: string) => {
+    // 🎯 REVISI: Pop-up SweetAlert Konfirmasi Aksi Full Dinamis EN / ID
     const confirmResult = await Swal.fire({
       title: isEnglish ? 'Are you sure?' : 'Apakah Anda yakin?',
-      text: isEnglish ? `Change role to ${newRole}?` : `Mengubah role menjadi ${newRole}?`,
+      text: isEnglish ? `Change user role to ${newRole}?` : `Mengubah role pengguna menjadi ${newRole}?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#5c1313',
@@ -93,19 +94,34 @@ const AdminRoomTab: React.FC<AdminRoomTabProps> = ({ authToken, t }) => {
       
       const result = await response.json();
       if (result.status === 'success') {
+        // 🎯 REVISI: Pop-up Sukses Aksi Dinamis EN / ID
         Swal.fire({ 
           title: isEnglish ? 'Success!' : 'Berhasil!', 
-          text: result.message, 
+          text: isEnglish ? 'User role updated successfully.' : (result.message || 'Role pengguna berhasil diperbarui.'), 
           icon: 'success', 
           confirmButtonColor: '#5c1313', 
           customClass: { popup: 'rounded-[2rem]' } 
         });
         fetchUsers();
       } else {
+        Swal.fire({
+          title: isEnglish ? 'Failed!' : 'Gagal!',
+          text: result.message || (isEnglish ? 'Failed to change role.' : 'Gagal mengubah role.'),
+          icon: 'error',
+          confirmButtonColor: '#5c1313',
+          customClass: { popup: 'rounded-[2rem]' }
+        });
         fetchUsers();
       }
     } catch (error) {
       console.error('Error updating role:', error);
+      Swal.fire({
+        title: 'Error!',
+        text: isEnglish ? 'Connection to server failed.' : 'Gagal terhubung ke database server.',
+        icon: 'error',
+        confirmButtonColor: '#5c1313',
+        customClass: { popup: 'rounded-[2rem]' }
+      });
       fetchUsers();
     }
   };

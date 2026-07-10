@@ -31,6 +31,10 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
   const [isEnglish, setIsEnglish] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
+  // 🎯 STATE BARU: Buat ngontrol pop-up konfirmasi hapus
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [assetIdToDelete, setAssetIdToDelete] = useState<number | string>('');
+
   const [formData, setFormData] = useState({
     id: '',
     code: '',
@@ -100,6 +104,38 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
     e.preventDefault();
     await onSaveAsset(formData);
     setIsModalOpen(false);
+  };
+
+  // 🎯 TRIGGER MODAL HAPUS: Buka pop-up kustom lu woi
+  const handleOpenDeleteModal = (id: number | string) => {
+    setAssetIdToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  // 🎯 FUNGSI HAPUS ASET UTAMA: Dipanggil pas tombol OK di modal kustom diklik
+  const handleConfirmDelete = async () => {
+    try {
+      const token = localStorage.getItem('token') || '';
+      const response = await fetch(`https://prismafitd3tektel.site/prisma-api/delete_asset.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ id: assetIdToDelete, token: token })
+      });
+      
+      const result = await response.json();
+      setIsDeleteModalOpen(false); // Tutup pop-up
+      
+      if (result.status === 'success') {
+        window.location.reload(); 
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      alert("Gagal terhubung ke server API!");
+    }
   };
 
   const handlePrintQR = (code: string, name: string) => {
@@ -220,16 +256,29 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
                     currentUser?.role?.toLowerCase().includes('aslab') || 
                     currentUser?.role?.toLowerCase().includes('asisten')
                   ) && (
-                    <button
-                      type="button"
-                      onClick={() => handleEditClick(asset)}
-                      className="p-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-brand hover:text-white border border-gray-100 transition-all active:scale-95 flex items-center justify-center shadow-sm"
-                      title={isEnglish ? "Edit Asset" : "Ubah Data Aset"}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.25 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                      </svg>
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(asset)}
+                        className="p-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-brand hover:text-white border border-gray-100 transition-all active:scale-95 flex items-center justify-center shadow-sm"
+                        title={isEnglish ? "Edit Asset" : "Ubah Data Aset"}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.25 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                        </svg>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDeleteModal(asset.id || '')}
+                        className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white border border-red-100 transition-all active:scale-95 flex items-center justify-center shadow-sm"
+                        title={isEnglish ? "Delete Asset" : "Hapus Aset"}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                        </svg>
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -329,6 +378,49 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
                 <button type="submit" className="flex-1 py-3.5 bg-brand text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md shadow-brand/10">{isEnglish ? 'SAVE ASSET' : 'SIMPAN ASET'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🎯 POP-UP MODAL KONFIRMASI HAPUS KUSTOM ESTETIK */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 border border-gray-100 shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+            
+            {/* Ikon Warning / Silang Merah Besar yang Estetik */}
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-50 border border-red-100 text-red-600 mb-4 shadow-sm">
+              <svg className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+
+            <h3 className="text-xl font-black text-utama tracking-tight uppercase mb-2">
+              {isEnglish ? 'DELETE CONFIRMATION' : 'KONFIRMASI HAPUS'}
+            </h3>
+            
+            <p className="text-xs font-bold text-gray-400 mb-6 px-2">
+              {isEnglish 
+                ? "Are you sure you want to permanently delete this asset? This action cannot be undone." 
+                : "Apakah Anda yakin ingin menghapus aset ini secara permanen? Data yang dihapus tidak bisa dikembalikan."
+              }
+            </p>
+
+            <div className="flex gap-3">
+              <button 
+                type="button" 
+                onClick={() => setIsDeleteModalOpen(false)} 
+                className="flex-1 py-3 bg-gray-100 text-gray-600 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all active:scale-95"
+              >
+                {isEnglish ? 'CANCEL' : 'BATAL'}
+              </button>
+              <button 
+                type="button" 
+                onClick={handleConfirmDelete} 
+                className="flex-1 py-3 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md shadow-red-200 hover:bg-red-700 active:scale-95"
+              >
+                {isEnglish ? 'DELETE' : 'HAPUS'}
+              </button>
+            </div>
           </div>
         </div>
       )}

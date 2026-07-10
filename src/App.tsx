@@ -6,7 +6,7 @@ import DashboardMain from './DashboardMain';
 import QRScanner from './components/QRScanner';
 import Swal from 'sweetalert2'; 
 
-export const API_BASE_URL = 'http://localhost/prisma-api';
+export const API_BASE_URL = "https://prismafitd3tektel.site/prisma-api";
 
 type ExtendedAsset = Asset & {
   name?: string;

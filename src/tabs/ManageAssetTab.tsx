@@ -29,8 +29,8 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEnglish, setIsEnglish] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
-  // State Form Input Tambah/Edit Aset
   const [formData, setFormData] = useState({
     id: '',
     code: '',
@@ -43,7 +43,6 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
     category: 'IT'
   });
 
-  // 🎯 DETEKTOR LIVE ANTI-GAGAL: Membaca teks DOM agar sinkron bahasa murni
   useEffect(() => {
     const handleLangCheck = () => {
       const pageText = document.body?.innerText || '';
@@ -75,11 +74,60 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
     });
   }, [assets, searchTerm, selectedCategory]);
 
+  const handleEditClick = (asset: Asset) => {
+    setIsEditing(true);
+    setFormData({
+      id: String(asset.id || ''),
+      code: asset.code || '',
+      name: asset.name || asset.asset_name || '',
+      qty: String(asset.quantity || asset.qty || asset.QTY || asset.stok || '1'),
+      status: asset.status || 'AVAILABLE',
+      condition: asset.conditionStatus || asset.condition || 'GOOD',
+      lab: asset.lab || 'Mechanical and Electrical Workshop Laboratory',
+      serialNumber: asset.serialNumber || '',
+      category: asset.category || 'IT'
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleOpenAddModal = () => {
+    setIsEditing(false);
+    setFormData({ id: '', code: '', name: '', qty: '1', status: 'AVAILABLE', condition: 'GOOD', lab: 'Mechanical and Electrical Workshop Laboratory', serialNumber: '', category: 'IT' });
+    setIsModalOpen(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await onSaveAsset(formData);
     setIsModalOpen(false);
-    setFormData({ id: '', code: '', name: '', qty: '1', status: 'AVAILABLE', condition: 'GOOD', lab: 'Mechanical and Electrical Workshop Laboratory', serialNumber: '', category: 'IT' });
+  };
+
+  const handlePrintQR = (code: string, name: string) => {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(code)}`;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Cetak QR Code - ${code}</title>
+            <style>
+              body { font-family: sans-serif; text-align: center; padding: 40px; }
+              .card { border: 2px dashed #000; padding: 20px; display: inline-block; border-radius: 8px; }
+              h2 { margin: 10px 0 5px 0; font-size: 16px; text-transform: uppercase; }
+              p { margin: 0; font-size: 12px; color: #555; font-weight: bold; }
+            </style>
+          </head>
+          <body onload="window.print();">
+            <div class="card">
+              <img src="${qrUrl}" alt="QR" />
+              <h2>${name}</h2>
+              <p>${code}</p>
+            </div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
   };
 
   return (
@@ -89,23 +137,23 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
           {isEnglish ? 'MANAGE LAB ASSETS' : 'KELOLA DATA ASET'}
         </h3>
         
-        {/* 🎯 REVISI SAKTI: Deteksi fleksibel mencakup ketikan role "Asisten Lab" kelompok lu woi! */}
-        {(
-          currentUser?.role?.toLowerCase() === 'admin' || 
-          currentUser?.role?.toLowerCase().includes('aslab') || 
-          currentUser?.role?.toLowerCase().includes('asisten')
-        ) && (
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="px-5 py-3 bg-brand hover:bg-gray-950 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md transform active:scale-95 flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
-            <span>{isEnglish ? 'ADD NEW ASSET' : 'TAMBAH ASET BARU'}</span>
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {(
+            currentUser?.role?.toLowerCase() === 'admin' || 
+            currentUser?.role?.toLowerCase().includes('aslab') || 
+            currentUser?.role?.toLowerCase().includes('asisten')
+          ) && (
+            <button 
+              onClick={handleOpenAddModal}
+              className="px-5 py-3 bg-brand hover:bg-gray-950 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md transform active:scale-95 flex items-center gap-2 whitespace-nowrap"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+              <span>{isEnglish ? 'ADD NEW ASSET' : 'TAMBAH ASET BARU'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* SEARCH BAR */}
       <div className="relative w-full max-w-2xl px-1">
         <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
           placeholder={isEnglish ? "Search asset by name or code..." : "Cari nama atau kode aset..."}
@@ -113,7 +161,6 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
         <svg className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
       </div>
 
-      {/* CATEGORY FILTERS */}
       <div className="flex gap-2 overflow-x-auto pb-2 px-1 scrollbar-none">
         {categories.map((cat) => (
           <button key={cat.id} type="button" onClick={() => setSelectedCategory(cat.id)}
@@ -123,24 +170,68 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
         ))}
       </div>
 
-      {/* LIST INVENTARIS ASSET */}
       <div className="space-y-4 px-1">
         {filteredAssets.length > 0 ? (
           filteredAssets.map((asset) => {
             const stock = asset.quantity ?? asset.qty ?? asset.QTY ?? asset.stok ?? 0;
+            const assetName = asset.name || asset.asset_name || '';
+            const assetCode = asset.code || 'CODE';
+            
             return (
-              <div key={asset.id} className="bg-white border border-gray-100 p-5 rounded-[2rem] shadow-sm flex items-center justify-between relative overflow-hidden group">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-[9px] font-bold text-gray-400">
-                    <span className="font-mono text-brand uppercase">{asset.code || 'CODE'}</span>
-                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md font-black uppercase">{isEnglish ? 'STOCK' : 'STOK'}: {stock} PCS</span>
+              <div key={asset.id} className="bg-white border border-gray-100 p-6 rounded-[2rem] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden group hover:border-brand/20 transition-all duration-300">
+                
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="w-14 h-14 bg-slate-50 border border-gray-100 rounded-xl flex items-center justify-center p-1 shrink-0">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(assetCode)}`} 
+                      alt="QR" 
+                      className="w-full h-full object-contain"
+                    />
                   </div>
-                  <h4 className="font-black text-utama text-base uppercase leading-tight">{asset.name || asset.asset_name}</h4>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase truncate max-w-md">SN: {asset.serialNumber || '-'} | LOCATION: {asset.lab}</p>
+                  
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 text-[9px] font-bold text-gray-400">
+                      <span className="font-mono text-brand uppercase">CODE: {assetCode}</span>
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md font-black uppercase">{isEnglish ? 'STOCK' : 'STOK'}: {stock} PCS</span>
+                    </div>
+                    <h4 className="font-black text-utama text-base uppercase leading-tight truncate">{assetName}</h4>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase truncate max-w-xl">SN: {asset.serialNumber || '-'} | LOCATION: {asset.lab}</p>
+                  </div>
                 </div>
-                <span className="px-3 py-1.5 bg-green-50 text-green-600 border border-green-100 rounded-xl font-black text-[9px] uppercase tracking-wider">
-                  {isEnglish ? 'AVAILABLE' : 'TERSEDIA'}
-                </span>
+
+                <div className="flex items-center justify-end gap-2 shrink-0">
+                  <span className="px-3 py-1.5 bg-green-50 text-green-600 border border-green-100 rounded-xl font-black text-[9px] uppercase tracking-wider">
+                    {isEnglish ? 'AVAILABLE' : 'TERSEDIA'}
+                  </span>
+                  
+                  <button
+                    type="button"
+                    onClick={() => handlePrintQR(assetCode, assetName)}
+                    className="p-2.5 bg-slate-50 text-gray-500 rounded-xl hover:bg-slate-900 hover:text-white border border-gray-100 transition-all active:scale-95 flex items-center justify-center shadow-sm"
+                    title={isEnglish ? "Print QR Code" : "Cetak QR Code"}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5zM6.75 6.75h.008v.008H6.75V6.75zM6.75 16.5h.008v.008H6.75V16.5zM16.5 6.75h.008v.008H16.5V6.75z" />
+                    </svg>
+                  </button>
+
+                  {(
+                    currentUser?.role?.toLowerCase() === 'admin' || 
+                    currentUser?.role?.toLowerCase().includes('aslab') || 
+                    currentUser?.role?.toLowerCase().includes('asisten')
+                  ) && (
+                    <button
+                      type="button"
+                      onClick={() => handleEditClick(asset)}
+                      className="p-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-brand hover:text-white border border-gray-100 transition-all active:scale-95 flex items-center justify-center shadow-sm"
+                      title={isEnglish ? "Edit Asset" : "Ubah Data Aset"}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.25 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })
@@ -151,17 +242,41 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
         )}
       </div>
 
-      {/* MODAL FORM TAMBAH ASET */}
+      {/* MODAL FORM TAMBAH / EDIT ASET */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-8 border border-gray-100 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-8 border border-gray-100 shadow-2xl animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-5">
               <h3 className="text-xl font-black text-utama tracking-tight uppercase">
-                {isEnglish ? 'ADD NEW LAB ASSET' : 'FORM TAMBAH ALAT BARU'}
+                {isEditing 
+                  ? (isEnglish ? 'EDIT LAB ASSET' : 'FORM UBAH DATA ASET') 
+                  : (isEnglish ? 'ADD NEW LAB ASSET' : 'FORM TAMBAH ALAT BARU')}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-brand bg-gray-50 p-1.5 rounded-lg">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
+            </div>
+
+            <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-dashed border-gray-200 flex flex-col items-center justify-center gap-2">
+              <span className="text-[9px] font-black tracking-widest text-gray-400 uppercase">
+                {isEnglish ? 'LIVE QR PREVIEW' : 'PREVIEW QR OTOMATIS'}
+              </span>
+              <div className="w-28 h-28 bg-white p-2 border border-gray-100 rounded-xl shadow-sm flex items-center justify-center">
+                {formData.code.trim() ? (
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(formData.code)}`} 
+                    alt="Live QR"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <div className="text-center text-[10px] text-gray-300 font-bold px-2">
+                    {isEnglish ? 'Enter Code First' : 'Ketik Kode Terlebih Dahulu'}
+                  </div>
+                )}
+              </div>
+              <span className="text-[11px] font-mono font-bold text-slate-600 bg-slate-200/60 px-2 py-0.5 rounded-md max-w-full truncate">
+                {formData.code || '-'}
+              </span>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">

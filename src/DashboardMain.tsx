@@ -105,7 +105,7 @@ const DashboardMain: React.FC<DashboardProps> = ({
       borrowTime: borrowTimeInput,
       returnTime: returnTimeInput,
       phone: phoneInput,
-      course: courseInput, // 🎯 TAMBAH KULIAH REVISI LAB OK
+      course: courseInput, 
       purpose: reasonInput,
       reason: reasonInput,
       quantity: 1
@@ -226,6 +226,7 @@ const DashboardMain: React.FC<DashboardProps> = ({
     { id: 'loans', label: lang === 'id' ? 'Persetujuan Peminjaman' : 'Loan Approvals', icon: 'M9 12.75L11.25 15 15 9.75M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z', roles: ['admin', 'asisten laboratorium'] },
     { id: 'monitoring', label: lang === 'id' ? 'Pemantauan Aktif' : 'Active Monitoring', icon: 'M2.036 12.322a1.012 1.012 0 010-.644M21.396 11.32c.252.31.252.834 0 1.142Q18 17.5 12 17.5c-6 0-9.316-4.538-9.358-4.758a1.012 1.012 0 010-.644Q6 6.5 12 6.5c6 0 9.316 4.538 9.396 4.82zM15 12a3 3 0 11-6 0 3 3 0 016 0z', roles: ['admin', 'dosen', 'asisten laboratorium'] },
     { id: 'history', label: lang === 'id' ? 'Riwayat Peminjaman' : 'Loan History', icon: 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'mahasiswa', 'dosen', 'asisten laboratorium'] },
+    { id: 'admin-panel', label: lang === 'id' ? 'Kelola Pengguna' : 'Manage Users', icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z', roles: ['admin'] },
   ];
 
   const manageAssetTabProps: any = {
@@ -307,6 +308,19 @@ const DashboardMain: React.FC<DashboardProps> = ({
                 </button>
               );
             })}
+
+            {/* 🎯 REVISI SAKTI: BUTTON QR COCOK BERADA DI BAWAH KELOLA PENGGUNA (MANAGE USERS) */}
+            <div className="px-6 py-3 border-t border-gray-50 mt-2">
+              <button 
+                onClick={() => setIsScannerOpen(true)} 
+                className="w-full py-3.5 bg-gradient-to-r from-brand to-[#4a0d0d] text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all duration-300 transform hover:-translate-y-0.5 shadow-md shadow-brand/20 flex items-center justify-center gap-2.5 whitespace-nowrap"
+              >
+                <svg className="w-4 h-4 text-white/90 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>{isEnglish ? 'SCAN QR CODE' : 'PINDAI QR CODE'}</span>
+              </button>
+            </div>
           </nav>
         </aside>
 
@@ -323,7 +337,7 @@ const DashboardMain: React.FC<DashboardProps> = ({
 
       <AddAssetModal isOpen={isAddAssetOpen} onClose={() => setIsAddAssetOpen(false)} labList={labList} t={t} authToken={authToken} onSave={(data) => onSaveAssetHandler(data)} />
       
-      {/* 🎯 REVISI SAKTI INLINE MODAL: Mengganti file eksternal yang hilang total tanpa eror TypeScript woi */}
+      {/* 🎯 REVISI SAKTI INLINE MODAL */}
       {isLoanFormOpen && selectedAssetForLoan && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] w-full max-w-md p-8 border border-gray-100 shadow-2xl flex flex-col relative animate-in zoom-in-95 duration-200">
@@ -348,7 +362,6 @@ const DashboardMain: React.FC<DashboardProps> = ({
                 <input type="tel" required value={phoneInput} onChange={(e) => setPhoneInput(e.target.value)} placeholder={isEnglish ? "Example: 081234567890" : "Contoh: 081234567890"} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama" />
               </div>
 
-              {/* 🎯 INPUT MATA KULIAH REVISI LAB BILINGUAL */}
               <div>
                 <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">{isEnglish ? "Course Name" : "Mata Kuliah"}</label>
                 <input type="text" required value={courseInput} onChange={(e) => setCourseInput(e.target.value)} placeholder={isEnglish ? "e.g., Telecom Networking" : "Contoh: Jaringan Telekomunikasi / IoT"} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama" />

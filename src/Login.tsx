@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 
 interface LoginProps {
@@ -30,6 +30,15 @@ const Login: React.FC<LoginProps> = ({
     nim: '',
     phoneNumber: ''
   });
+
+  // 🎯 SAKTI: Amankan parameter query link hasil scan QR saat pertama kali user mendarat di halaman login
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const scanCode = urlParams.get('scanCode');
+    if (scanCode) {
+      localStorage.setItem('prismafit_pending_scan', scanCode);
+    }
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>

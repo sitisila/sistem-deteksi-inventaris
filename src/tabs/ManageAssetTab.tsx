@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 interface Asset {
   id?: number | string;
   code?: string;
+  asset_code?: string;
   name?: string;
   asset_name?: string;
   qty?: number | string;
@@ -31,7 +32,7 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
   const [isEnglish, setIsEnglish] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  // 🎯 STATE BARU: Buat ngontrol pop-up konfirmasi hapus
+  // STATE: Kontrol pop-up konfirmasi hapus
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [assetIdToDelete, setAssetIdToDelete] = useState<number | string>('');
 
@@ -42,7 +43,7 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
     qty: '1',
     status: 'AVAILABLE',
     condition: 'GOOD',
-    lab: 'Mechanical and Electrical Workshop Laboratory',
+    lab: 'Mechanical Workshop (G13)',
     serialNumber: '',
     category: 'IT'
   });
@@ -67,13 +68,23 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
     { id: 'DOC', idLabel: 'ASET DOKUMEN & ADMINISTRASI', enLabel: 'DOCUMENT & ADMINISTRATIVE ASSETS' },
   ];
 
+  // 🎯 SINKRONISASI KATEGORI DATABASE SAKTI
   const filteredAssets = useMemo(() => {
     return assets.filter(asset => {
       const assetName = String(asset.name || asset.asset_name || '').toLowerCase();
-      const assetCode = String(asset.code || '').toLowerCase();
+      const assetCode = String(asset.code || asset.asset_code || '').toLowerCase();
       const matchesSearch = assetName.includes(searchTerm.toLowerCase()) || assetCode.includes(searchTerm.toLowerCase());
+      
       const assetCategory = String(asset.category || '').toUpperCase();
-      const matchesCategory = selectedCategory === 'ALL' || assetCategory === selectedCategory;
+      
+      let mappedCategory = selectedCategory;
+      if (selectedCategory === 'IT') mappedCategory = 'IT & COMPUTING DEVICES';
+      if (selectedCategory === 'NETWORK') mappedCategory = 'NETWORKING & TELECOMMUNICATION';
+      if (selectedCategory === 'IOT') mappedCategory = 'ELECTRONICS & IOT DEVICES';
+      if (selectedCategory === 'LAB') mappedCategory = 'LABORATORY & MEASUREMENT TOOLS';
+      if (selectedCategory === 'DOC') mappedCategory = 'DOCUMENT & ADMINISTRATIVE ASSETS';
+
+      const matchesCategory = selectedCategory === 'ALL' || assetCategory === mappedCategory;
       return matchesSearch && matchesCategory;
     });
   }, [assets, searchTerm, selectedCategory]);
@@ -82,12 +93,12 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
     setIsEditing(true);
     setFormData({
       id: String(asset.id || ''),
-      code: asset.code || '',
+      code: asset.code || asset.asset_code || '',
       name: asset.name || asset.asset_name || '',
       qty: String(asset.quantity || asset.qty || asset.QTY || asset.stok || '1'),
       status: asset.status || 'AVAILABLE',
       condition: asset.conditionStatus || asset.condition || 'GOOD',
-      lab: asset.lab || 'Mechanical and Electrical Workshop Laboratory',
+      lab: asset.lab || 'Mechanical Workshop (G13)',
       serialNumber: asset.serialNumber || '',
       category: asset.category || 'IT'
     });
@@ -96,7 +107,7 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
 
   const handleOpenAddModal = () => {
     setIsEditing(false);
-    setFormData({ id: '', code: '', name: '', qty: '1', status: 'AVAILABLE', condition: 'GOOD', lab: 'Mechanical and Electrical Workshop Laboratory', serialNumber: '', category: 'IT' });
+    setFormData({ id: '', code: '', name: '', qty: '1', status: 'AVAILABLE', condition: 'GOOD', lab: 'Mechanical Workshop (G13)', serialNumber: '', category: 'IT' });
     setIsModalOpen(true);
   };
 
@@ -106,13 +117,11 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
     setIsModalOpen(false);
   };
 
-  // 🎯 TRIGGER MODAL HAPUS: Buka pop-up kustom lu woi
   const handleOpenDeleteModal = (id: number | string) => {
     setAssetIdToDelete(id);
     setIsDeleteModalOpen(true);
   };
 
-  // 🎯 FUNGSI HAPUS ASET UTAMA: Dipanggil pas tombol OK di modal kustom diklik
   const handleConfirmDelete = async () => {
     try {
       const token = localStorage.getItem('token') || '';
@@ -126,7 +135,7 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
       });
       
       const result = await response.json();
-      setIsDeleteModalOpen(false); // Tutup pop-up
+      setIsDeleteModalOpen(false);
       
       if (result.status === 'success') {
         window.location.reload(); 
@@ -138,8 +147,10 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
     }
   };
 
+  // 🎯 MERUBAH CETAK QR: Menyisipkan Link Domain Hostinger Riil kelompok lu woi!
   const handlePrintQR = (code: string, name: string) => {
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(code)}`;
+    const targetUrl = `https://prismafitd3tektel.site/?scanCode=${encodeURIComponent(code)}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(targetUrl)}`;
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(`
@@ -148,14 +159,14 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
             <title>Cetak QR Code - ${code}</title>
             <style>
               body { font-family: sans-serif; text-align: center; padding: 40px; }
-              .card { border: 2px dashed #000; padding: 20px; display: inline-block; border-radius: 8px; }
-              h2 { margin: 10px 0 5px 0; font-size: 16px; text-transform: uppercase; }
-              p { margin: 0; font-size: 12px; color: #555; font-weight: bold; }
+              .card { border: 2px dashed #5c1313; padding: 20px; display: inline-block; border-radius: 16px; background: #fff; }
+              h2 { margin: 12px 0 5px 0; font-size: 15px; text-transform: uppercase; color: #1e293b; font-weight: 900; }
+              p { margin: 0; font-size: 11px; color: #5c1313; font-weight: 900; font-family: monospace; tracking-wider; }
             </style>
           </head>
           <body onload="window.print();">
             <div class="card">
-              <img src="${qrUrl}" alt="QR" />
+              <img src="${qrUrl}" alt="QR" style="width:140px; height:140px;" />
               <h2>${name}</h2>
               <p>${code}</p>
             </div>
@@ -169,7 +180,7 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-center px-1">
-        <h3 className="text-3xl font-black text-gray-950 uppercase tracking-tight">
+        <h3 className="text-3xl font-black text-utama uppercase tracking-tight">
           {isEnglish ? 'MANAGE LAB ASSETS' : 'KELOLA DATA ASET'}
         </h3>
         
@@ -181,7 +192,7 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
           ) && (
             <button 
               onClick={handleOpenAddModal}
-              className="px-5 py-3 bg-brand hover:bg-gray-950 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md transform active:scale-95 flex items-center gap-2 whitespace-nowrap"
+              className="px-5 py-3 bg-brand text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md transform active:scale-95 flex items-center gap-2 whitespace-nowrap"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
               <span>{isEnglish ? 'ADD NEW ASSET' : 'TAMBAH ASET BARU'}</span>
@@ -211,15 +222,16 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
           filteredAssets.map((asset) => {
             const stock = asset.quantity ?? asset.qty ?? asset.QTY ?? asset.stok ?? 0;
             const assetName = asset.name || asset.asset_name || '';
-            const assetCode = asset.code || 'CODE';
+            const assetCode = asset.code || asset.asset_code || 'CODE';
             
             return (
               <div key={asset.id} className="bg-white border border-gray-100 p-6 rounded-[2rem] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden group hover:border-brand/20 transition-all duration-300">
                 
                 <div className="flex items-center gap-4 flex-1 min-w-0">
                   <div className="w-14 h-14 bg-slate-50 border border-gray-100 rounded-xl flex items-center justify-center p-1 shrink-0">
+                    {/* Preview QR Code Terikat URL Tautan Aktif */}
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(assetCode)}`} 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(`https://prismafitd3tektel.site/?scanCode=${assetCode}`)}`} 
                       alt="QR" 
                       className="w-full h-full object-contain"
                     />
@@ -237,13 +249,14 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
 
                 <div className="flex items-center justify-end gap-2 shrink-0">
                   <span className="px-3 py-1.5 bg-green-50 text-green-600 border border-green-100 rounded-xl font-black text-[9px] uppercase tracking-wider">
-                    {isEnglish ? 'AVAILABLE' : 'TERSEDIA'}
+                    {asset.status || 'TERSEDIA'}
                   </span>
                   
+                  {/* Cetak Ikon Tombol QR Code */}
                   <button
                     type="button"
                     onClick={() => handlePrintQR(assetCode, assetName)}
-                    className="p-2.5 bg-slate-50 text-gray-500 rounded-xl hover:bg-slate-900 hover:text-white border border-gray-100 transition-all active:scale-95 flex items-center justify-center shadow-sm"
+                    className="p-2.5 bg-gray-50 text-gray-500 rounded-xl hover:bg-slate-900 hover:text-white border border-gray-100 transition-all active:scale-95 flex items-center justify-center shadow-sm"
                     title={isEnglish ? "Print QR Code" : "Cetak QR Code"}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -260,7 +273,7 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
                       <button
                         type="button"
                         onClick={() => handleEditClick(asset)}
-                        className="p-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-brand hover:text-white border border-gray-100 transition-all active:scale-95 flex items-center justify-center shadow-sm"
+                        className="p-2.5 bg-gray-50 text-gray-500 rounded-xl hover:bg-slate-950 hover:text-white border border-gray-100 transition-all active:scale-95 flex items-center justify-center shadow-sm"
                         title={isEnglish ? "Edit Asset" : "Ubah Data Aset"}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -313,7 +326,7 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
               <div className="w-28 h-28 bg-white p-2 border border-gray-100 rounded-xl shadow-sm flex items-center justify-center">
                 {formData.code.trim() ? (
                   <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(formData.code)}`} 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`https://prismafitd3tektel.site/?scanCode=${formData.code}`)}`} 
                     alt="Live QR"
                     className="w-full h-full object-contain"
                   />
@@ -331,12 +344,12 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">{isEnglish ? 'ASSET CODE' : 'KODE ASET'}</label>
-                <input type="text" required placeholder="Contoh: FIT-G13-001" value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value})} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama" />
+                <input type="text" required placeholder="Contoh: AST0001" value={formData.code} onChange={(e) => setFormData({...formData, code: e.target.value})} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama" />
               </div>
 
               <div>
                 <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">{isEnglish ? 'ASSET NAME' : 'NAMA ALAT'}</label>
-                <input type="text" required placeholder={isEnglish ? "e.g., Digital Oscilloscope" : "Contoh: Solder Listrik / Toolkit"} value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama" />
+                <input type="text" required placeholder="Contoh: LAN Tester" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -353,23 +366,22 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
               <div>
                 <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">{isEnglish ? 'LABORATORY LOCATION' : 'LOKASI LABORATORIUM'}</label>
                 <select value={formData.lab} onChange={(e) => setFormData({...formData, lab: e.target.value})} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama">
-                  <option value="Mechanical and Electrical Workshop Laboratory">Mechanical Workshop (G13)</option>
-                  <option value="Telecommunication Networking (TelNet) Laboratory">TelNet Laboratory (G4)</option>
-                  <option value="Optical Communication System (OCS) Laboratory">OCS Laboratory (G9)</option>
-                  <option value="Wireless Communication (WiComm) Laboratory">WiComm Laboratory (E3)</option>
-                  <option value="Telecommunication Technology Research Laboratory">TTRL Laboratory (A1)</option>
-                  <option value="Cellular Communication (CellComm) Laboratory">CellComm Laboratory (A1)</option>
+                  <option value="Mechanical Workshop (G13)">Mechanical Workshop (G13)</option>
+                  <option value="TelNet Laboratory (G4)">TelNet Laboratory (G4)</option>
+                  <option value="OCS Laboratory (G9)">OCS Laboratory (G9)</option>
+                  <option value="WiComm Laboratory (E3)">WiComm Laboratory (E3)</option>
+                  <option value="CellComm Laboratory (A1)">CellComm Laboratory (A1)</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">{isEnglish ? 'CLASSIFICATION CATEGORY' : 'KLASIFIKASI KATEGORI'}</label>
                 <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full bg-slate-50 text-xs font-bold rounded-xl px-3.5 py-3 border border-gray-100 text-utama">
-                  <option value="IT">IT & COMPUTING DEVICES</option>
-                  <option value="NETWORK">NETWORKING & TELECOMMUNICATION</option>
-                  <option value="IOT">ELECTRONICS & IOT DEVICES</option>
-                  <option value="LAB">LABORATORY & MEASUREMENT TOOLS</option>
-                  <option value="DOC">DOCUMENT & ADMINISTRATIVE ASSETS</option>
+                  <option value="IT & COMPUTING DEVICES">IT & COMPUTING DEVICES</option>
+                  <option value="NETWORKING & TELECOMMUNICATION">NETWORKING & TELECOMMUNICATION</option>
+                  <option value="ELECTRONICS & IOT DEVICES">ELECTRONICS & IOT DEVICES</option>
+                  <option value="LABORATORY & MEASUREMENT TOOLS">LABORATORY & MEASUREMENT TOOLS</option>
+                  <option value="DOCUMENT & ADMINISTRATIVE ASSETS">DOCUMENT & ADMINISTRATIVE ASSETS</option>
                 </select>
               </div>
 
@@ -382,44 +394,24 @@ const ManageAssetTab: React.FC<ManageAssetTabProps> = ({ assets, onSaveAsset, cu
         </div>
       )}
 
-      {/* 🎯 POP-UP MODAL KONFIRMASI HAPUS KUSTOM ESTETIK */}
+      {/* POP-UP MODAL KONFIRMASI HAPUS KUSTOM ESTETIK */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-8 border border-gray-100 shadow-2xl animate-in zoom-in-95 duration-200 text-center">
-            
-            {/* Ikon Warning / Silang Merah Besar yang Estetik */}
             <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-50 border border-red-100 text-red-600 mb-4 shadow-sm">
               <svg className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
-
             <h3 className="text-xl font-black text-utama tracking-tight uppercase mb-2">
               {isEnglish ? 'DELETE CONFIRMATION' : 'KONFIRMASI HAPUS'}
             </h3>
-            
             <p className="text-xs font-bold text-gray-400 mb-6 px-2">
-              {isEnglish 
-                ? "Are you sure you want to permanently delete this asset? This action cannot be undone." 
-                : "Apakah Anda yakin ingin menghapus aset ini secara permanen? Data yang dihapus tidak bisa dikembalikan."
-              }
+              {isEnglish ? "Are you sure you want to permanently delete this asset?" : "Apakah Anda yakin ingin menghapus aset ini secara permanen?"}
             </p>
-
             <div className="flex gap-3">
-              <button 
-                type="button" 
-                onClick={() => setIsDeleteModalOpen(false)} 
-                className="flex-1 py-3 bg-gray-100 text-gray-600 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all active:scale-95"
-              >
-                {isEnglish ? 'CANCEL' : 'BATAL'}
-              </button>
-              <button 
-                type="button" 
-                onClick={handleConfirmDelete} 
-                className="flex-1 py-3 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md shadow-red-200 hover:bg-red-700 active:scale-95"
-              >
-                {isEnglish ? 'DELETE' : 'HAPUS'}
-              </button>
+              <button type="button" onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-3 bg-gray-100 text-gray-600 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all active:scale-95">{isEnglish ? 'CANCEL' : 'BATAL'}</button>
+              <button type="button" onClick={handleConfirmDelete} className="flex-1 py-3 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md shadow-red-200 hover:bg-red-700 active:scale-95">{isEnglish ? 'DELETE' : 'HAPUS'}</button>
             </div>
           </div>
         </div>

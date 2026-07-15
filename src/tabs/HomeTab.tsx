@@ -20,7 +20,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEnglish, setIsEnglish] = useState(false);
 
-  // 🎯 REVISI: State Pencarian Alat & Pilihan dalam Dropdown
+  // State Pencarian Alat & Pilihan dalam Dropdown
   const [assetSearchQuery, setAssetSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -41,23 +41,44 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
     return () => clearInterval(interval);
   }, [t]);
 
-  // --- 📊 CALCULATOR STATISTIK KHUSUS MAHASISWA ---
-  const mahasiswaStats = useMemo(() => {
-    // 🎯 REVISI FIX NIM: Disamakan akurat mengambil data properti nim login database lu woi
-    const userNimStr = String(currentUser?.nim || currentUser?.username || currentUserId || '');
-    const myLoans = loans?.filter(loan => String(loan.userId || loan.user_id || loan.nim) === userNimStr) || [];
+  // --- 📊 CALCULATOR STATISTIK KHUSUS USER (SUPER TOLERAN MULTI-KEY) ---
+  const stats = useMemo(() => {
+    const myLoans = (loans || []).filter(loan => {
+      if (isAdmin) return true; // Admin memantau akumulasi total seluruh database
+      
+      // Ambil semua kemungkinan properti key user dari database
+      const loanUserId = String(loan.user_id || loan.userId || '');
+      const loanNim = String(loan.nim || loan.borrowerNim || '');
+      const loanName = String(loan.borrowerName || loan.user_name || loan.name || '').toUpperCase();
+      
+      // Ambil data identitas login akun lu saat ini
+      const currentIdStr = String(currentUserId || '');
+      const currentNimStr = String(currentUser?.nim || currentUser?.username || '');
+      const currentNameStr = String(currentUser?.name || '').toUpperCase();
 
+      // JALUR SAKTI KEBAL: Cocokkan ID, NIM, atau substring nama lengkap lu woi!
+      return (
+        (loanUserId !== '' && loanUserId === currentIdStr) || 
+        (loanNim !== '' && (loanNim === currentNimStr || loanNim === String(currentUser?.username))) ||
+        (currentNameStr !== '' && loanName.includes(currentNameStr)) ||
+        (loanName !== '' && currentNameStr.includes(loanName))
+      );
+    });
+
+    // 1. Hitung status DISETUJUI / APPROVED / ACTIVE
     const borrowedCount = myLoans.filter(l => 
-      ['APPROVED', 'ACTIVE', 'DIPINJAM', 'BORROWED'].includes(String(l.status).toUpperCase())
+      ['APPROVED', 'ACTIVE', 'DIPINJAM', 'BORROWED', 'DISETUJUI'].includes(String(l.status).toUpperCase())
     ).length;
 
+    // 2. Hitung status DIKEMBALIKAN / RETURNED
     const returnedCount = myLoans.filter(l => 
       ['RETURNED', 'DIKEMBALIKAN'].includes(String(l.status).toUpperCase())
     ).length;
 
+    // 3. Hitung status TERKENA DEADLINE (Peminjaman aktif & tanggal kembali melewati waktu saat ini)
     const deadlineCount = myLoans.filter(l => {
       const statusText = String(l.status).toUpperCase();
-      const isCurrentlyBorrowed = ['APPROVED', 'ACTIVE', 'DIPINJAM', 'BORROWED'].includes(statusText);
+      const isCurrentlyBorrowed = ['APPROVED', 'ACTIVE', 'DIPINJAM', 'BORROWED', 'DISETUJUI'].includes(statusText);
       const targetDate = l.return_date || l.returnDate || l.tanggal_kembali;
       
       if (isCurrentlyBorrowed && targetDate) {
@@ -67,7 +88,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
     }).length;
 
     return { borrowedCount, returnedCount, deadlineCount, myLoans };
-  }, [loans, currentUserId, currentUser]);
+  }, [loans, currentUserId, currentUser, isAdmin]);
 
   // --- 🔄 STATE FORM PEMINJAMAN UPDATE ---
   const [formData, setFormData] = useState({
@@ -76,9 +97,56 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
     borrowTime: '',
     returnTime: '',
     phoneNumber: '', 
-    course: '', // 🎯 REVISI TAMBAHAN: Kolom Baru Mata Kuliah
+    course: '', 
     reason: ''
   });
+
+  // 🎯 ENGINE POP-UP AUTO-FILL QR SCANNER ANTAR-HALAMAN WOI!
+  useEffect(() => {
+    const pendingScan = localStorage.getItem('prismafit_pending_scan');
+    
+    if (pendingScan && assets && assets.length > 0) {
+      // Cari data logistik di database kelompok lu yang kodenya klop dengan hasil scan QR
+      const matchedAsset = assets.find(a => {
+        const itemCode = String(a.code || a.asset_code || '').toUpperCase().trim();
+        return itemCode === pendingScan.toUpperCase().trim();
+      });
+
+      if (matchedAsset) {
+        const stock = parseInt(matchedAsset.QTY || matchedAsset.qty || matchedAsset.quantity || matchedAsset.stok || '0');
+        
+        if (stock > 0) {
+          // Suntik langsung isian datanya ke form state secara otomatis woi!
+          setFormData({
+            assetId: String(matchedAsset.id),
+            selectedAssetName: `${matchedAsset.name || matchedAsset.asset_name} (${isEnglish ? 'Stock' : 'Stok'}: ${stock})`,
+            borrowTime: new Date().toTimeString().slice(0, 5), // Set default jam pinjam sekarang
+            returnTime: new Date(new Date().getTime() + 2*60*60*1000).toTimeString().slice(0, 5), // Set default jam selesai (+2 jam)
+            phoneNumber: currentUser?.phone || currentUser?.telepon || '',
+            course: '',
+            reason: ''
+          });
+          
+          // Bersihkan storage biar kodenya gak gantung dan pop-up terus pas di-refresh
+          localStorage.removeItem('prismafit_pending_scan');
+          
+          // LANGSUNG JEDERRR MELUNCUR FORM MODALNYA DI BERANDA!
+          setIsModalOpen(true);
+        } else {
+          localStorage.removeItem('prismafit_pending_scan');
+          Swal.fire({
+            title: isEnglish ? 'Out of Stock!' : 'Stok Habis!',
+            text: isEnglish 
+              ? `Sorry, ${matchedAsset.name || matchedAsset.asset_name} is currently out of stock.` 
+              : `Maaf woi, kuantitas stok alat ${matchedAsset.name || matchedAsset.asset_name} sedang kosong/habis!`,
+            icon: 'error',
+            confirmButtonColor: '#5c1313',
+            customClass: { popup: 'rounded-[2rem]' }
+          });
+        }
+      }
+    }
+  }, [assets, currentUser, isEnglish]);
 
   // Filter list aset berdasarkan ketikan user di kolom pencarian alat
   const filteredAssetOptions = useMemo(() => {
@@ -145,7 +213,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
       borrowTime: formData.borrowTime,
       returnTime: formData.returnTime,
       phone: formData.phoneNumber,
-      course: formData.course, // 🎯 REVISI: Kirim data Mata Kuliah ke backend API PHP lu woi
+      course: formData.course, 
       purpose: formData.reason,
       reason: formData.reason,
       quantity: 1
@@ -184,14 +252,13 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
   };
 
   const displayActivities = useMemo(() => {
-    if (isAdmin) return loans?.slice(0, 3) || [];
-    return mahasiswaStats.myLoans.slice(0, 3);
-  }, [loans, isAdmin, mahasiswaStats.myLoans]);
+    return stats.myLoans.slice(0, 3);
+  }, [stats.myLoans]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* BANNER WELCOME */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-brand via-[#5c1313] to-utama py-6 px-10 rounded-[2rem] text-white shadow-lg shadow-brand/10">
+      <div className="relative overflow-hidden bg-gradient-to-r from-brand via-[#5c1313] to-utama py-6 px-10 rounded-[2rem] text-white shadow-lg shadow-brand/10 mx-2">
         <div className="absolute top-0 right-0 w-52 h-52 bg-white/[0.03] rounded-full blur-2xl"></div>
         <div className="relative z-10 max-w-2xl">
           <span className="text-[9px] font-black tracking-[0.3em] uppercase bg-white/10 px-3 py-1 rounded-full border border-white/10">
@@ -211,7 +278,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* STATISTIK RINGKASAN */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between px-1">
+          <div className="flex items-center justify-between px-1 mx-2">
             <div className="flex items-center gap-3">
               <span className="w-1.5 h-4 bg-brand rounded-full"></span>
               <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
@@ -221,7 +288,6 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
               </h4>
             </div>
 
-            {/* 🎯 REVISI PROTEKSI AKSES SAKTI: Hanya role 'mahasiswa' asli yang tombolnya muncul dan bisa pinjam! Aslab/Admin terkunci otomatis */}
             {currentUser?.role?.toLowerCase() === 'mahasiswa' && (
               <button 
                 onClick={() => setIsModalOpen(true)}
@@ -233,13 +299,13 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mx-2">
             {isMahasiswa ? (
               <>
                 <div className="p-6 bg-white border border-gray-100/70 rounded-[1.5rem] shadow-md flex items-center justify-between">
                   <div>
                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{isEnglish ? "ASSETS CURRENTLY BORROWED" : "ASET SEDANG DIPINJAM"}</p>
-                    <p className="text-4xl font-black text-orange-500 tracking-tight">{mahasiswaStats.borrowedCount}</p>
+                    <p className="text-4xl font-black text-orange-500 tracking-tight">{stats.borrowedCount}</p>
                   </div>
                   <div className="p-3 rounded-xl bg-orange-50"><svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>
                 </div>
@@ -247,7 +313,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
                 <div className="p-6 bg-white border border-gray-100/70 rounded-[1.5rem] shadow-md flex items-center justify-between">
                   <div>
                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{isEnglish ? "SUCCESSFULLY RETURNED" : "TELAH DIKEMBALIKAN"}</p>
-                    <p className="text-4xl font-black text-green-600 tracking-tight">{mahasiswaStats.returnedCount}</p>
+                    <p className="text-4xl font-black text-green-600 tracking-tight">{stats.returnedCount}</p>
                   </div>
                   <div className="p-3 rounded-xl bg-green-50"><svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>
                 </div>
@@ -255,7 +321,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
                 <div className="p-6 bg-white border border-red-100 rounded-[1.5rem] shadow-md sm:col-span-2 flex items-center justify-between">
                   <div>
                     <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1.5">{isEnglish ? "TOTAL ASSETS OVER DUE DEADLINE" : "TOTAL ASET TERKENA DEADLINE"}</p>
-                    <p className="text-4xl font-black text-brand tracking-tight">{mahasiswaStats.deadlineCount}</p>
+                    <p className="text-4xl font-black text-brand tracking-tight">{stats.deadlineCount}</p>
                   </div>
                   <div className="p-3 rounded-xl bg-brand/5"><svg className="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div>
                 </div>
@@ -273,9 +339,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
                 <div className="p-6 bg-white border border-gray-100/70 rounded-[1.5rem] shadow-md flex items-center justify-between">
                   <div>
                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{isEnglish ? "BORROWED" : "DIPINJAM"}</p>
-                    <p className="text-4xl font-black text-orange-500 tracking-tight">
-                      {loans?.filter(l => ['APPROVED', 'ACTIVE', 'DIPINJAM', 'BORROWED'].includes(String(l.status).toUpperCase())).length || 0}
-                    </p>
+                    <p className="text-4xl font-black text-orange-500 tracking-tight">{stats.borrowedCount}</p>
                   </div>
                   <div className="p-3 rounded-xl bg-orange-50"><svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>
                 </div>
@@ -284,7 +348,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
                   <div>
                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{isEnglish ? "APPROVALS" : "PERSETUJUAN"}</p>
                     <p className="text-4xl font-black text-brand tracking-tight">
-                      {loans?.filter(l => ['PENDING', 'PROSES'].includes(String(l.status).toUpperCase())).length || 0}
+                      {loans?.filter(l => ['PENDING', 'PROSES', 'MENUNGGU'].includes(String(l.status).toUpperCase())).length || 0}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-brand/5"><svg className="w-5 h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg></div>
@@ -305,7 +369,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
         </div>
 
         {/* PANDUAN LAB */}
-        <div className="space-y-6">
+        <div className="space-y-6 mx-2 lg:mx-0">
           <div className="flex items-center gap-3 px-1">
             <span className="w-1.5 h-4 bg-brand rounded-full"></span>
             <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{isEnglish ? "FILE SHORTCUTS" : "DOKUMEN PANDUAN"}</h4>
@@ -328,7 +392,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
       </div>
 
       {/* LOG AKTIVITAS BAWAH */}
-      <div className="bg-slate-50/50 p-6 rounded-[2rem] border border-gray-100/80 shadow-sm">
+      <div className="bg-slate-50/50 p-6 rounded-[2rem] border border-gray-100/80 shadow-sm mx-2">
         <div className="flex items-center justify-between mb-6 px-1">
           <h4 className="text-[10px] font-black text-utama uppercase tracking-[0.25em]">
             {isMahasiswa 
@@ -407,7 +471,6 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
             </div>
 
             <form onSubmit={handleQuickLoanSubmit} className="space-y-4">
-              {/* 🎯 SINKRONISASI IDENTITAS NIM DATABASE RIL */}
               <div className="bg-brand/[0.02] border border-brand/10 rounded-2xl p-5 space-y-4">
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                   <div>
@@ -439,7 +502,6 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
                 />
               </div>
 
-              {/* 🎯 REVISI MANDAT: SEARCHABLE FILTER DROPDOWN ALAT */}
               <div className="relative">
                 <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">
                   {isEnglish ? "Search & Select Equipment" : "Cari & Pilih Alat Lab"}
@@ -451,7 +513,7 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
                   <span className={formData.selectedAssetName ? "text-utama" : "text-gray-400"}>
                     {formData.selectedAssetName || (isEnglish ? "-- Search Equipment Name --" : "-- Ketik/Cari Nama Aset --")}
                   </span>
-                  <svg className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"/></svg>
+                  <svg className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </div>
 
                 {isDropdownOpen && (
@@ -493,7 +555,6 @@ const HomeTab: React.FC<HomeTabProps> = ({ t, assets, loans, setActiveTab, curre
                 )}
               </div>
 
-              {/* 🎯 REVISI MANDAT: INPUT KOLOM BARU MATA KULIAH */}
               <div>
                 <label className="block text-[10px] font-black tracking-widest uppercase text-gray-400 mb-1">
                   {isEnglish ? "Course Name" : "Mata Kuliah"}

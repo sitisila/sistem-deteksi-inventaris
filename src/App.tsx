@@ -8,17 +8,29 @@ import Swal from 'sweetalert2';
 
 export const API_BASE_URL = "https://prismafitd3tektel.site/prisma-api";
 
+// 🎯 SAKTI: Kita suntik langsung properti database baru ke type ExtendedAsset disini biar TS(2339) musnah selamanya!
 type ExtendedAsset = Asset & {
+  id?: number | string;
   name?: string;
+  asset_name?: string;
+  code?: string;
+  asset_code?: string;
   serialNumber?: string;
   lab?: string;
+  QTY?: number | string;
+  qty?: number | string;
+  quantity?: number | string;
+  stok?: number | string;
+  status?: string;
+  conditionStatus?: string;
+  condition?: string;
+  category?: string;
 };
 
 const App: React.FC = () => {
   const [lang, setLang] = useState<'id' | 'en'>('id');
   const t = useMemo(() => TRANSLATIONS[lang], [lang]);
 
-  // 🎯 FIX AUTO-LOGOUT ON CLOSE: Mengubah storage utama dari localStorage ke sessionStorage woi!
   const [authToken, setAuthToken] = useState<string | null>(() => {
     return sessionStorage.getItem('authToken') || sessionStorage.getItem('token') ||
            localStorage.getItem('authToken') || localStorage.getItem('token');
@@ -34,7 +46,6 @@ const App: React.FC = () => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannedAsset, setScannedAsset] = useState<ExtendedAsset | null>(null);
 
-  // 🎯 REVISI SEBELUMNYA: Menu terakhir tetap aman selama tab tidak diclose woi
   const [activeTab, setActiveTab] = useState<string>(() => {
     return sessionStorage.getItem('prismafit_active_tab') || 'home';
   });
@@ -48,7 +59,15 @@ const App: React.FC = () => {
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [assetToPrint, setAssetToPrint] = useState<ExtendedAsset | null>(null);
 
-  // Simpan state active tab ke sessionStorage agar musnah pas di-close woi
+  // 🎯 SAKTI REDIRECT: Jika ada data pending_scan dari link QR di URL luar, amankan langsung ke storage woi
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const scanCode = urlParams.get('scanCode');
+    if (scanCode) {
+      localStorage.setItem('prismafit_pending_scan', scanCode);
+    }
+  }, []);
+
   useEffect(() => {
     sessionStorage.setItem('prismafit_active_tab', activeTab);
   }, [activeTab]);
@@ -116,7 +135,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener('refreshLoansData', handleRefreshTrigger);
   }, []);
 
-  // 🎯 SINKRONISASI SESI BARU: Mengamankan Token dan User ke sessionStorage
   useEffect(() => {
     if (authToken) {
       sessionStorage.setItem('authToken', authToken);
@@ -145,12 +163,16 @@ const App: React.FC = () => {
       });
       const result = await response.json();
       if (result.status === 'success') {
-        // Simpan ke sessionStorage biar auto hancur pas didelete woi
         sessionStorage.setItem('authToken', result.token);
         sessionStorage.setItem('currentUser', JSON.stringify(result.user));
         
         setCurrentUser(result.user);
         setAuthToken(result.token);
+        
+        if (localStorage.getItem('prismafit_pending_scan')) {
+          setActiveTab('home');
+          sessionStorage.setItem('prismafit_active_tab', 'home');
+        }
         return true;
       } else {
         Swal.fire({
@@ -260,9 +282,7 @@ const App: React.FC = () => {
         method: 'POST',
         body: JSON.stringify(loanData)
       });
-      
       const result = await response.json();
-      
       if (result.status === 'success') {
         Swal.fire({
           title: lang === 'id' ? 'Berhasil!' : 'Success!',
@@ -297,14 +317,20 @@ const App: React.FC = () => {
 
   const handleScan = (data: string | null) => {
     if (data) {
+      let cleanCode = data.trim();
+      if (data.includes('scanCode=')) {
+        const urlObj = new URL(data);
+        cleanCode = urlObj.searchParams.get('scanCode') || data;
+      }
+
       const foundAsset = assets.find(a => 
-        String(a.id) === data.trim() || 
-        (a.serialNumber && a.serialNumber.trim().toLowerCase() === data.trim().toLowerCase())
+        String(a.id) === cleanCode || 
+        String(a.code || a.asset_code || '').trim().toLowerCase() === cleanCode.toLowerCase() ||
+        (a.serialNumber && a.serialNumber.trim().toLowerCase() === cleanCode.toLowerCase())
       );
 
       if (foundAsset) {
         setIsScannerOpen(false); 
-        
         const currentStatus = String(foundAsset.status).toLowerCase();
         if (currentStatus === 'available' || currentStatus === 'tersedia') { 
           setSelectedAssetForLoan(foundAsset); 
@@ -313,8 +339,8 @@ const App: React.FC = () => {
           Swal.fire({
             title: lang === 'id' ? 'Tidak Tersedia!' : 'Not Available!',
             text: lang === 'id' 
-              ? `Aset ${foundAsset.name || ''} sedang tidak tersedia (Status: ${foundAsset.status}).`
-              : `Asset ${foundAsset.name || ''} is currently unavailable (Status: ${foundAsset.status}).`,
+              ? `Aset ${foundAsset.name || foundAsset.asset_name || ''} sedang tidak tersedia.`
+              : `Asset ${foundAsset.name || foundAsset.asset_name || ''} is currently unavailable.`,
             icon: 'warning',
             confirmButtonColor: '#5c1313',
             customClass: { popup: 'rounded-[2rem]' }
@@ -324,8 +350,8 @@ const App: React.FC = () => {
         Swal.fire({
           title: lang === 'id' ? 'Tidak Ditemukan!' : 'Not Found!',
           text: lang === 'id'
-            ? `Aset dengan kode "${data}" tidak ditemukan di database.`
-            : `Asset with code "${data}" was not found in the database.`,
+            ? `Aset dengan kode "${cleanCode}" tidak ditemukan di database.`
+            : `Asset with code "${cleanCode}" was not found in the database.`,
           icon: 'error',
           confirmButtonColor: '#5c1313',
           customClass: { popup: 'rounded-[2rem]' }
